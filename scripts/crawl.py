@@ -6,6 +6,7 @@ import pathlib
 import statistics
 import time
 from taptap import get, EVENT_ID
+from protection import retain, check_snapshot, check_size
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DATA = ROOT / 'data'
@@ -112,6 +113,9 @@ def main():
     games.sort(key=lambda g: (-g['heat'], int(g['id'])))
     for rank, game in enumerate(games, 1): game['rank'] = rank
     ended = timestamp()
+    previous_path = DATA / 'latest.json'
+    previous = json.loads(previous_path.read_text(encoding='utf-8')) if previous_path.exists() else {}
+    check_snapshot(games, previous, len(ids))
     latest = {
         'schemaVersion': 1, 'eventId': EVENT_ID, 'eventName': '2026 TapTap 聚光灯 · 21天游戏创作挑战',
         'theme': '涌现', 'sourceUrl': event['url'], 'startedAt': started, 'crawledAt': ended,
@@ -134,14 +138,8 @@ def main():
     if history.get('eventId') != EVENT_ID:
         raise ValueError('History belongs to another event')
     history['snapshots'].append({'ts': ended, 'games': {g['id']: [g['heat'],g['followers'],g['rank']] for g in games}})
-    history['snapshots'].sort(key=lambda s:s['ts'])
-    # Keep all recent samples for 7 days, then one actual snapshot per UTC day.
-    cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=7)
-    daily, recent = {}, []
-    for snapshot in history['snapshots']:
-        if dt.datetime.fromisoformat(snapshot['ts']) < cutoff: daily[snapshot['ts'][:10]] = snapshot
-        else: recent.append(snapshot)
-    history['snapshots'] = list(daily.values()) + recent
+    history['snapshots'] = retain(history['snapshots'], dt.datetime.now(dt.timezone.utc))
+    check_size({'latest': latest, 'history': history})
     atomic_json(history_path, history)
     atomic_json(DATA / 'latest.json', latest)
     atomic_json(registry_path, {'eventId': EVENT_ID, 'updatedAt': ended, 'ids': ids})

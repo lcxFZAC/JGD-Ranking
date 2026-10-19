@@ -1,0 +1,42 @@
+name: Watch Spotlight freshness
+on:
+  schedule:
+    - cron: '47 * * * *'
+  workflow_dispatch:
+    inputs:
+      test_notification:
+        description: '发送一次明确标注为测试的告警，并自动关闭'
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: spotlight-health
+  cancel-in-progress: false
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/github-script@v7
+        env:
+          TEST_NOTIFICATION: ${{ inputs.test_notification }}
+        with:
+          script: |
+            const alert = require('./scripts/alert.cjs');
+            if (process.env.TEST_NOTIFICATION === 'true') {
+              await alert({github,context,core}, '通知通道测试', '这是主动通知测试，不代表网站故障。测试后会自动关闭。');
+              await alert({github,context,core}, '通知通道测试', null);
+            }
+            let problem = null;
+            try {
+              const response = await fetch('https://jgd-ranking.pages.dev/data/latest.json', {signal:AbortSignal.timeout(30000), headers:{'Cache-Control':'no-cache'}});
+              if (!response.ok) throw new Error(`HTTP ${response.status}`);
+              const data = await response.json();
+              const age = Date.now() - Date.parse(data.crawledAt);
+              if (data.eventId !== 28 || !Number.isFinite(age) || age > 6*3600000 || age < -300000) throw new Error(`线上快照无效或超过 6 小时未更新：${data.crawledAt}`);
+            } catch(error) { problem = `线上新鲜度检查失败：${error.message}`; }
+            await alert({github,context,core}, '网站数据过期或不可访问', problem);
+            if (problem) core.setFailed(problem);

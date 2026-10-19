@@ -7,6 +7,7 @@ const latest = read('latest.json'), history = read('history.json');
 if (!latest.games?.length || latest.eventId !== 28 || history.eventId !== 28) throw new Error('Invalid event snapshot');
 if (latest.summary.total !== latest.games.length) throw new Error('Snapshot count mismatch');
 const bundle = `window.SPOTLIGHT_DATA=${JSON.stringify({latest, history}).replace(/</g, '\\u003c')};\n`;
+if (Buffer.byteLength(bundle) > 20 * 1024 * 1024) throw new Error('Data bundle exceeds 20 MiB publication budget');
 fs.writeFileSync(path.join(root, 'data/dashboard.js'), bundle);
 const dist = path.join(root, 'dist');
 fs.mkdirSync(path.join(dist, 'data'), {recursive: true});
