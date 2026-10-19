@@ -28,6 +28,31 @@
     link.append(icon, text);
     return link;
   }
+  function dailyRecommendations() {
+    const day = new Date(Date.now() + 8 * 3600000).toISOString().slice(0,10);
+    if ($('dailyDate').dataset.day === day) return;
+    const snapshots = [...state.history].sort((a,b)=>a.ts.localeCompare(b.ts));
+    const baseline = snapshots.find(s => new Date(Date.parse(s.ts) + 8*3600000).toISOString().slice(0,10) === day) || snapshots.at(-1);
+    const ids = baseline ? new Set(Object.keys(baseline.games)) : null;
+    function hash(value) { let n=2166136261; for(const c of value) n=Math.imul(n^c.charCodeAt(0),16777619); n^=n>>>16; n=Math.imul(n,0x85ebca6b); n^=n>>>13; return n>>>0; }
+    const picks = state.data.games.filter(g=>g.id!=='961322' && (!ids || ids.has(g.id)))
+      .map(g=>({g,key:hash(day+':'+g.id)})).sort((a,b)=>a.key-b.key || a.g.id.localeCompare(b.g.id)).slice(0,3);
+    $('dailyGames').replaceChildren();
+    picks.forEach(({g},i)=>{
+      const card=node('article','card daily-card');
+      card.append(node('span','daily-number',`0${i+1} / 今日发现`),gameLink(g,true));
+      card.append(node('p','muted small',`${labels[g.platform]} · ${g.method==='maker'?'TapTap 制造':'其他方式开发'}`));
+      const footer=node('div','daily-footer');
+      footer.append(node('span','small',`热度 ${short(g.heat)} · 关注 ${short(g.followers)}`));
+      const link=node('a','daily-cta','去发现 ↗'); link.href=g.url; link.target='_blank'; link.rel='noopener noreferrer';
+      footer.append(link);card.append(footer);$('dailyGames').append(card);
+    });
+    $('dailyDate').textContent=day+' · 每日三款'; $('dailyDate').dataset.day=day;
+  }
+  $('adCover').addEventListener('error',()=>{
+    $('adCover').hidden=true;
+    $('adCover').parentElement.append(node('div','cover-fallback','✦ 造物锅 · 创造你的无限可能'));
+  },{once:true});
   function kpi(label, value, className = '', caption = '') {
     const card = node('div', `kpi ${className}`);
     card.append(node('div', 'label', label), node('div', 'value', value));
@@ -199,7 +224,8 @@
   function initialize(bundle) {
     if (!bundle?.latest?.games?.length) throw new Error('没有可用的参赛作品快照');
     state.data = bundle.latest; state.history = bundle.history?.snapshots || [];
-    overview(); renderTable();
+    overview(); renderTable(); dailyRecommendations();
+    setInterval(dailyRecommendations,60000);
     $('trendSelect').replaceChildren();
     state.data.games.forEach(game => { const option = node('option', '', `#${game.rank} ${game.name}`); option.value = game.id; $('trendSelect').append(option); });
     if (!state.data.games.some(g => g.id === state.selected)) state.selected = state.data.games[0].id;
