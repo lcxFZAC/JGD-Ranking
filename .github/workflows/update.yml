@@ -77,11 +77,14 @@ jobs:
         uses: actions/github-script@v7
         env:
           JOB_STATUS: ${{ job.status }}
+          CRAWL_RESULT: ${{ steps.crawl.outcome }}
           DISCOVERY_RESULT: ${{ steps.discovery.outcome }}
         with:
           script: |
             const alert = require('./scripts/alert.cjs');
-            await alert({github,context,core}, '抓取或发布准备失败', process.env.JOB_STATUS !== 'success' ? '更新任务失败或取消，保留上次发布数据。请检查日志。' : null);
+            if (process.env.JOB_STATUS !== 'success' || process.env.CRAWL_RESULT === 'success') {
+              await alert({github,context,core}, '抓取或发布准备失败', process.env.JOB_STATUS !== 'success' ? '更新任务失败或取消，保留上次发布数据。请检查日志。' : null);
+            }
             if (process.env.DISCOVERY_RESULT === 'failure' || process.env.DISCOVERY_RESULT === 'success') {
               await alert({github,context,core}, '参赛目录补查失败', process.env.DISCOVERY_RESULT === 'failure' ? '目录补查失败，已继续更新现有名单指标；待下次补查恢复。' : null);
             }
