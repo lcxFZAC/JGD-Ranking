@@ -33,7 +33,8 @@
     const day = new Date(Date.now() + 8 * 3600000).toISOString().slice(0,10);
     if ($('dailyDate').dataset.day === day) return;
     const snapshots = [...state.history].sort((a,b)=>a.ts.localeCompare(b.ts));
-    const baseline = snapshots.find(s => new Date(Date.parse(s.ts) + 8*3600000).toISOString().slice(0,10) === day) || snapshots.at(-1);
+    const midnight = Date.parse(day + 'T00:00:00+08:00');
+    const baseline = snapshots.filter(s => Date.parse(s.ts) <= midnight).at(-1) || snapshots[0];
     const ids = baseline ? new Set(Object.keys(baseline.games)) : null;
     function hash(value) { let n=2166136261; for(const c of value) n=Math.imul(n^c.charCodeAt(0),16777619); n^=n>>>16; n=Math.imul(n,0x85ebca6b); n^=n>>>13; return n>>>0; }
     const picks = state.data.games.filter(g=>g.id!=='961322' && (!ids || ids.has(g.id)))
