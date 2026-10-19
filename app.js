@@ -96,7 +96,7 @@
       kpi('其他方式开发', number(s.other), '', '其他已收录参赛作品'),
       kpi('PC + 移动双端', number(s.platforms.dual), 'pc', '支持 PC 及至少一种移动平台')
     );
-    bar('developmentBar', 'developmentLegend', [['TapTap 制造', s.maker, 'var(--accent)'], ['其他', s.other, 'var(--accent-2)']], s.total);
+    bar('developmentBar', 'developmentLegend', [['TapTap 制造', s.maker, '#ffe044'], ['其他', s.other, '#298565']], s.total);
     const platforms = [['双端', s.platforms.dual, 'var(--accent)'], ['移动', s.platforms.mobile, 'var(--pc)'], ['PC', s.platforms.pc, '#9b8af2']];
     if (s.platforms.unknown) platforms.push(['未标明', s.platforms.unknown, 'var(--muted)']);
     bar('platformBar', 'platformLegend', platforms, s.total);
