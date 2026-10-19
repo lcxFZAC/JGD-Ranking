@@ -4,7 +4,7 @@ const alert = require('../scripts/alert.cjs');
   const items = []; let created=0, comments=0;
   const api = {
     listForRepo:()=>{},
-    create:async p=>{items.push({...p,number:1,state:'open'});created++;},
+    create:async p=>{items.push({...p,number:1,state:'open'});created++;return {data:{number:1}};},
     update:async p=>Object.assign(items.find(i=>i.number===p.issue_number),p),
     createComment:async()=>{comments++;}
   };

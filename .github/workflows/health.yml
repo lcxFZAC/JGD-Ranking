@@ -27,8 +27,9 @@ jobs:
           script: |
             const alert = require('./scripts/alert.cjs');
             if (process.env.TEST_NOTIFICATION === 'true') {
-              await alert({github,context,core}, '通知通道测试', '这是主动通知测试，不代表网站故障。测试后会自动关闭。');
-              await alert({github,context,core}, '通知通道测试', null);
+              const number = await alert({github,context,core}, '通知通道测试', '这是主动通知测试，不代表网站故障。测试后会自动关闭。');
+              await github.rest.issues.createComment({...context.repo, issue_number:number, body:'通知通道测试通过，自动关闭。'});
+              await github.rest.issues.update({...context.repo, issue_number:number, state:'closed'});
             }
             let problem = null;
             try {
