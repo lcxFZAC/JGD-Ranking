@@ -29,6 +29,7 @@
     return link;
   }
   function dailyRecommendations() {
+    if (!$('dailyDate') || !$('dailyGames')) return;
     const day = new Date(Date.now() + 8 * 3600000).toISOString().slice(0,10);
     if ($('dailyDate').dataset.day === day) return;
     const snapshots = [...state.history].sort((a,b)=>a.ts.localeCompare(b.ts));

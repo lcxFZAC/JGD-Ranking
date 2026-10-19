@@ -12,6 +12,7 @@ fs.writeFileSync(path.join(root, 'data/dashboard.js'), bundle);
 const dist = path.join(root, 'dist');
 fs.mkdirSync(path.join(dist, 'data'), {recursive: true});
 fs.cpSync(path.join(root,'assets'),path.join(dist,'assets'),{recursive:true});
+fs.copyFileSync(path.join(root,'_headers'),path.join(dist,'_headers'));
 for (const file of ['index.html','styles.css','spotlight.css','app.js']) fs.copyFileSync(path.join(root,file), path.join(dist,file));
 for (const file of ['latest.json','history.json','dashboard.js']) fs.copyFileSync(path.join(root,'data',file), path.join(dist,'data',file));
 fs.writeFileSync(path.join(dist,'.nojekyll'), '');
