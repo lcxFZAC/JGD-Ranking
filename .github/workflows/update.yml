@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       refresh_data:
-        description: '抓取最新数据；关闭时直接发布仓库内快照'
+        description: '抓取最新数据并提交 GitHub；关闭时仅校验'
         type: boolean
         default: false
       full_discovery:
@@ -14,14 +14,11 @@ on:
         type: boolean
         default: false
   schedule:
-    - cron: '35 * * * *'
-    - cron: '5 1-23 * * *'
+    - cron: '5 3,6,9,12,15,18,21 * * *'
     - cron: '5 0 * * *'
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: spotlight-data
@@ -69,17 +66,3 @@ jobs:
             git pull --rebase origin "$GITHUB_REF_NAME"
             git push origin "HEAD:$GITHUB_REF_NAME"
           fi
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-  deploy:
-    needs: update
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/configure-pages@v5
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4

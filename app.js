@@ -56,8 +56,8 @@
     $('workCount').textContent = number(s.total);
     $('snapshotTime').textContent = `统计时间 ${when(data.crawledAt)}（北京时间） · 点击作品图标跳转 TapTap`;
     const age = Date.now() - Date.parse(data.crawledAt);
-    $('statusPill').textContent = age > 7200000 ? '数据待更新' : '快照已更新';
-    $('statusPill').className = `status ${age > 7200000 ? '' : 'ok'}`;
+    $('statusPill').textContent = age > 14400000 ? '数据待更新' : '快照已更新';
+    $('statusPill').className = `status ${age > 14400000 ? '' : 'ok'}`;
     $('statusPill').title = `抓取完成于 ${when(data.crawledAt)}`;
     $('overviewKpis').replaceChildren(
       kpi('TapTap 制造', number(s.maker), 'mobile', '使用 TapTap 制造标签的作品'),
