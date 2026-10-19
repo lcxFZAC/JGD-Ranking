@@ -18,7 +18,8 @@
     link.href = `https://www.taptap.cn/app/${encodeURIComponent(game.id)}`;
     link.target = '_blank'; link.rel = 'noopener noreferrer';
     const icon = node('img', 'game-icon');
-    if (/^https:\/\/(?:[\w-]+\.)*tapimg\.com\//.test(game.icon)) icon.src = game.icon;
+    if (String(game.id) === '961322') icon.src = './assets/zaowuguo-icon.jpg';
+    else if (/^https:\/\/(?:[\w-]+\.)*tapimg\.com\//.test(game.icon)) icon.src = game.icon;
     icon.alt = ''; icon.loading = 'lazy'; icon.referrerPolicy = 'no-referrer';
     icon.addEventListener('error', () => { icon.removeAttribute('src'); icon.alt = '✦'; }, { once: true });
     const text = node('span'); text.style.minWidth = '0';
@@ -51,6 +52,10 @@
     });
     $('dailyDate').textContent=day+' · 每日三款'; $('dailyDate').dataset.day=day;
   }
+  const adIcon = $('adIcon');
+  const fallbackIcon = () => { adIcon.src = './assets/zaowuguo-cover.jpg'; };
+  adIcon.addEventListener('error', fallbackIcon, { once: true });
+  if (adIcon.complete && !adIcon.naturalWidth) fallbackIcon();
   $('adCover').addEventListener('error',()=>{
     $('adCover').hidden=true;
     $('adCover').parentElement.append(node('div','cover-fallback','✦ 造物锅 · 创造你的无限可能'));
