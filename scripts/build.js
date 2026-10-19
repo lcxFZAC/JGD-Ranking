@@ -1,0 +1,16 @@
+'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
+const root = path.resolve(__dirname, '..');
+const read = name => JSON.parse(fs.readFileSync(path.join(root, 'data', name), 'utf8'));
+const latest = read('latest.json'), history = read('history.json');
+if (!latest.games?.length || latest.eventId !== 28 || history.eventId !== 28) throw new Error('Invalid event snapshot');
+if (latest.summary.total !== latest.games.length) throw new Error('Snapshot count mismatch');
+const bundle = `window.SPOTLIGHT_DATA=${JSON.stringify({latest, history}).replace(/</g, '\\u003c')};\n`;
+fs.writeFileSync(path.join(root, 'data/dashboard.js'), bundle);
+const dist = path.join(root, 'dist');
+fs.mkdirSync(path.join(dist, 'data'), {recursive: true});
+for (const file of ['index.html','styles.css','spotlight.css','app.js']) fs.copyFileSync(path.join(root,file), path.join(dist,file));
+for (const file of ['latest.json','history.json','dashboard.js']) fs.copyFileSync(path.join(root,'data',file), path.join(dist,'data',file));
+fs.writeFileSync(path.join(dist,'.nojekyll'), '');
+console.log(`Built dist/: ${latest.games.length} verified games, ${history.snapshots.length} historical snapshots.`);

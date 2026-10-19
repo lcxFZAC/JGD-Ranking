@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="2026 TapTap 聚光灯 21 天游戏创作挑战数据看板：参赛作品、开发方式、平台分布、热度与关注排行。">
+  <meta name="color-scheme" content="dark light">
+  <title>聚光灯 · 2026 游戏创作挑战看板</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230f1419'/%3E%3Cpath d='M32 8L38 26 56 32 38 38 32 56 26 38 8 32 26 26Z' fill='%233ecf8e'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./spotlight.css">
+  <script>try{document.documentElement.dataset.theme=localStorage.getItem('spotlight-theme')||'dark'}catch{}</script>
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">✦</div>
+        <div><h1>聚光灯 · 游戏创作挑战看板</h1><p class="sub">2026 TapTap GameJam · 21 天创作 · 让好创意被看见</p></div>
+      </div>
+      <div class="top-actions">
+        <button class="theme-toggle" id="themeToggle" type="button" aria-label="切换浅色主题" title="切换深浅色主题">☀</button>
+        <span class="status" id="statusPill" role="status">读取数据中</span>
+        <a class="btn" href="https://www.taptap.cn/app/961322?os=android" target="_blank" rel="noopener noreferrer">支持《造物锅》 ↗</a>
+      </div>
+    </header>
+
+    <nav class="section-nav" aria-label="页面导航"><a href="#overview" class="active">数据总览</a><a href="#ranking">热度 TOP 10</a><a href="#works">作品榜单</a><a href="#trends">作品走势</a><a href="https://www.taptap.cn/poster/NIKiDS1YShdA" target="_blank" rel="noopener noreferrer" class="official-link">官方活动 ↗</a></nav>
+    <div class="ticker"><span class="ticker-label">✦ 本届主题</span><div class="ticker-copy"><strong>涌现</strong><span>创意从这里生长，作品在这里相遇。</span></div><span class="chip">2026 · 21 DAYS</span></div>
+    <main>
+      <section class="hero-panel" id="overview" aria-labelledby="overviewTitle">
+        <div class="hero-head">
+          <div><p class="eyebrow">SPOTLIGHT / 2026</p><h2 id="overviewTitle">已收录 <span id="workCount">—</span> 款参赛作品</h2><p class="muted snapshot-time" id="snapshotTime">正在读取 TapTap 参赛作品快照…</p></div>
+          <button class="btn-sm secondary" type="button" id="sourceButton">数据说明 ⓘ</button>
+        </div>
+        <div id="dataNotice" class="data-notice" hidden></div>
+        <div class="overview-grid" id="overviewKpis" aria-live="polite"></div>
+      </section>
+
+      <section class="distribution-grid" aria-label="参赛作品分布">
+        <article class="card distribution-card"><div class="card-head"><h3>开发方式占比</h3><span class="chip">作品数量</span></div><div class="stack-bar" id="developmentBar"></div><div class="bar-legend" id="developmentLegend"></div></article>
+        <article class="card distribution-card"><div class="card-head"><h3>平台分布占比</h3><span class="chip">按作品去重</span></div><div class="stack-bar" id="platformBar"></div><div class="bar-legend" id="platformLegend"></div></article>
+      </section>
+
+      <section class="heat-section" aria-labelledby="heatTitle"><div class="section-heading"><h3 id="heatTitle">热度与关注</h3><span class="muted small">每一个数字，都是一次被看见</span></div><div class="heat-grid" id="heatKpis"></div></section>
+
+      <section class="card ranking-card" id="ranking" aria-labelledby="rankingTitle">
+        <div class="card-head"><div><p class="eyebrow">THE TOP TEN</p><h3 id="rankingTitle">热度 TOP 10</h3></div><span class="chip">点击图标 / 名称，前往 TapTap ↗</span></div>
+        <div class="top-ten" id="topTen"><p class="empty-state">正在加载榜单…</p></div>
+      </section>
+
+      <section class="rec-section" aria-labelledby="recommendTitle">
+        <div class="section-heading"><h3 id="recommendTitle">✦ 作者推荐作品</h3><span class="chip">推荐位 · 不影响榜单排序</span></div>
+        <a class="featured-game card" href="https://www.taptap.cn/app/961322?os=android" target="_blank" rel="noopener noreferrer">
+          <div class="featured-media"><img id="adCover" src="https://img-tc.tapimg.com/market/images/565d1206803c24424f62281e6f542c06.png/_tap_banner_m.jpg" alt="造物锅游戏画面" loading="lazy"><span class="ad-label">作者推荐</span></div>
+          <div class="featured-body"><p class="eyebrow">A LITTLE POT. ENDLESS POSSIBILITIES.</p><div class="featured-title"><img id="adIcon" src="https://img-tc.tapimg.com/market/images/56bfecf3489af3bd1fdff9ef05879752.png/_tap_appicon_m.jpg" alt="" loading="lazy"><div><h3>造物锅</h3><span class="muted small">非洲阿楚工作室 · 策略造物</span></div></div><p>如果给你一块肉、一条腿和一只眼睛，你会造出什么？<br>投入材料、创造生物，在战斗中发现更多可能。</p><div class="featured-bottom"><span class="chip">2026 聚光灯参赛作品</span><span class="ad-cta">去 TapTap 试玩 ↗</span></div></div>
+        </a>
+      </section>
+
+      <section id="works" class="works-section" aria-labelledby="worksTitle">
+        <div class="section-heading"><div><p class="eyebrow">DISCOVER THE NEXT IDEA</p><h3 id="worksTitle">作品数据榜单</h3></div><button class="btn-sm" id="exportButton" type="button" disabled>导出 CSV ↓</button></div>
+        <div class="toolbar card works-toolbar">
+          <div class="search-box"><label for="searchInput">搜索作品</label><input id="searchInput" type="search" placeholder="作品名 / 开发者 / 游戏 ID" autocomplete="off"></div>
+          <div class="filters"><label for="methodSelect">开发方式</label><select id="methodSelect"><option value="all">全部方式</option><option value="maker">TapTap 制造</option><option value="other">其他方式开发</option></select></div>
+          <div class="filters"><label for="platformSelect">平台</label><select id="platformSelect"><option value="all">全部平台</option><option value="dual">PC + 移动双端</option><option value="mobile">仅移动端</option><option value="pc">仅 PC</option><option value="unknown">未标明平台</option></select></div>
+          <div class="filters"><label for="sortSelect">排序</label><select id="sortSelect"><option value="heat-desc">热度 ↓</option><option value="heat-asc">热度 ↑</option><option value="followers-desc">关注数 ↓</option><option value="name-asc">名称 A → Z</option></select></div>
+        </div>
+        <article class="card list-card">
+          <div class="card-head"><span id="resultCount" class="muted small" role="status">正在加载作品</span><button class="text-button" type="button" id="resetFilters">重置筛选</button></div>
+          <div class="table-wrap"><table><thead><tr><th scope="col">排名</th><th scope="col">作品</th><th scope="col">开发方式</th><th scope="col">平台</th><th scope="col" class="num">热度</th><th scope="col" class="num">关注数</th><th scope="col">操作</th></tr></thead><tbody id="totalBody"></tbody></table></div>
+          <div class="pagination"><span class="muted small" id="pageInfo"></span><div><button class="btn-sm secondary" type="button" id="prevPage">← 上一页</button><button class="btn-sm secondary" type="button" id="nextPage">下一页 →</button></div></div>
+        </article>
+      </section>
+
+      <section id="trends" class="trends-section" aria-labelledby="trendsTitle">
+        <div class="section-heading"><div><p class="eyebrow">FOLLOW THE JOURNEY</p><h3 id="trendsTitle">作品热度与排名走势</h3></div><span class="chip" id="historyCount">历史快照</span></div>
+        <div class="card trend-controls"><div><label for="trendSelect">选择作品</label><select id="trendSelect"></select></div><div><label>时间范围</label><div class="seg" id="rangeSeg"><button type="button" data-range="24h" class="active" aria-pressed="true">近 24 小时</button><button type="button" data-range="7d" aria-pressed="false">近 7 天</button><button type="button" data-range="all" aria-pressed="false">全部</button></div></div></div>
+        <div id="selectedStats" class="selected-stats"></div>
+        <p class="muted small">走势来自实际抓取快照；收录名单扩大时，排名也会受到比较范围变化的影响。</p>
+        <div class="trend-grid"><article class="card chart-card"><div class="card-head"><h3>热度走势</h3><span class="chip">真实抓取快照</span></div><div id="heatChart" class="svg-chart"></div></article><article class="card chart-card"><div class="card-head"><h3>排名走势</h3><span class="chip">数值越低，排名越靠前</span></div><div id="rankChart" class="svg-chart"></div></article></div>
+      </section>
+    </main>
+    <footer class="page-footer"><span>✦ 聚光灯 2026 · 非官方数据看板</span><div><a href="https://github.com/lcxFZAC/jinhaitun-ranking" target="_blank" rel="noopener noreferrer">样式参考：金海豚看板 ↗</a><button class="text-button" type="button" id="footerSource">数据来源与统计口径</button></div></footer>
+  </div>
+  <dialog id="sourceDialog"><div class="dialog-head"><h2>数据来源与统计口径</h2><button type="button" class="theme-toggle" id="closeDialog" aria-label="关闭说明">×</button></div><div id="sourceDetails"></div><p>本看板为非官方作品数据展示，热度排行不代表官方评审、获奖结果或作品质量。</p><a class="btn" href="https://www.taptap.cn/poster/NIKiDS1YShdA" target="_blank" rel="noopener noreferrer">查看官方活动 ↗</a></dialog>
+  <noscript><p class="data-notice">请启用 JavaScript 查看和筛选作品。原始数据可从 <a href="./data/latest.json">latest.json</a> 下载。</p></noscript>
+  <script src="./data/dashboard.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

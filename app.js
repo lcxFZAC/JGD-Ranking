@@ -1,0 +1,213 @@
+/* UI for verified TapTap snapshots. Data is never interpolated as HTML. */
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const number = (n) => Number(n).toLocaleString('zh-CN');
+  const short = (n) => n >= 10000 ? `${(n / 10000).toFixed(1)}万` : number(n);
+  const when = (value) => new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(value)).replaceAll('/', '-');
+  const labels = { dual: 'PC + 移动', mobile: '仅移动端', pc: '仅 PC', unknown: '未标明' };
+  const state = { data: null, history: [], page: 1, size: 30, range: '24h', selected: '961322' };
+  const node = (tag, className, text) => {
+    const result = document.createElement(tag);
+    if (className) result.className = className;
+    if (text !== undefined) result.textContent = text;
+    return result;
+  };
+  function gameLink(game, developer = false) {
+    const link = node('a', 'game-link');
+    link.href = `https://www.taptap.cn/app/${encodeURIComponent(game.id)}`;
+    link.target = '_blank'; link.rel = 'noopener noreferrer';
+    const icon = node('img', 'game-icon');
+    if (/^https:\/\/(?:[\w-]+\.)*tapimg\.com\//.test(game.icon)) icon.src = game.icon;
+    icon.alt = ''; icon.loading = 'lazy'; icon.referrerPolicy = 'no-referrer';
+    icon.addEventListener('error', () => { icon.removeAttribute('src'); icon.alt = '✦'; }, { once: true });
+    const text = node('span'); text.style.minWidth = '0';
+    const name = node('span', 'game-name', game.name); name.title = game.name;
+    text.append(name);
+    if (developer) text.append(node('span', 'developer-name', game.developer || '独立开发者'));
+    link.append(icon, text);
+    return link;
+  }
+  function kpi(label, value, className = '', caption = '') {
+    const card = node('div', `kpi ${className}`);
+    card.append(node('div', 'label', label), node('div', 'value', value));
+    if (caption) card.append(node('div', 'kpi-caption', caption));
+    return card;
+  }
+  function bar(id, legendId, items, total) {
+    const container = $(id), legend = $(legendId);
+    container.replaceChildren(); legend.replaceChildren();
+    container.setAttribute('role', 'img');
+    container.setAttribute('aria-label', items.map(([label, count]) => `${label} ${count} 款`).join('，'));
+    items.forEach(([label, count, color]) => {
+      const percent = total ? count / total * 100 : 0;
+      const segment = node('span', 'stack-segment');
+      segment.style.width = `${percent}%`; segment.style.background = color;
+      segment.title = `${label}：${number(count)} 款（${percent.toFixed(1)}%）`;
+      container.append(segment);
+      const item = node('span');
+      const dot = node('i', 'legend-dot'); dot.style.background = color;
+      item.append(dot, document.createTextNode(`${label} `), node('strong', '', `${percent.toFixed(1)}%`));
+      item.title = `${number(count)} 款`; legend.append(item);
+    });
+  }
+  function overview() {
+    const data = state.data, s = data.summary;
+    $('workCount').textContent = number(s.total);
+    $('snapshotTime').textContent = `统计时间 ${when(data.crawledAt)}（北京时间） · 点击作品图标跳转 TapTap`;
+    const age = Date.now() - Date.parse(data.crawledAt);
+    $('statusPill').textContent = age > 7200000 ? '数据待更新' : '快照已更新';
+    $('statusPill').className = `status ${age > 7200000 ? '' : 'ok'}`;
+    $('statusPill').title = `抓取完成于 ${when(data.crawledAt)}`;
+    $('overviewKpis').replaceChildren(
+      kpi('TapTap 制造', number(s.maker), 'mobile', '使用 TapTap 制造标签的作品'),
+      kpi('其他方式开发', number(s.other), '', '其他已收录参赛作品'),
+      kpi('PC + 移动双端', number(s.platforms.dual), 'pc', '支持 PC 及至少一种移动平台')
+    );
+    bar('developmentBar', 'developmentLegend', [['TapTap 制造', s.maker, 'var(--accent)'], ['其他', s.other, 'var(--accent-2)']], s.total);
+    const platforms = [['双端', s.platforms.dual, 'var(--accent)'], ['移动', s.platforms.mobile, 'var(--pc)'], ['PC', s.platforms.pc, '#9b8af2']];
+    if (s.platforms.unknown) platforms.push(['未标明', s.platforms.unknown, 'var(--muted)']);
+    bar('platformBar', 'platformLegend', platforms, s.total);
+    $('heatKpis').replaceChildren(
+      kpi('总热度', short(s.totalHeat), 'mobile'), kpi('热度中位数', number(s.medianHeat)),
+      kpi('热度破万', number(s.overTenThousand)), kpi('零热度作品', number(s.zeroHeat)), kpi('总关注数', short(s.totalFollowers), 'pc')
+    );
+    [...$('heatKpis').children].forEach((card, i) => card.title = number([s.totalHeat, s.medianHeat, s.overTenThousand, s.zeroHeat, s.totalFollowers][i]));
+    if (data.coverage?.notice) {
+      $('dataNotice').hidden = false;
+      $('dataNotice').textContent = data.coverage.notice;
+    }
+    $('topTen').replaceChildren();
+    data.games.slice(0, 10).forEach((game, i) => {
+      const row = node('div', 'top-row');
+      const track = node('div', 'rank-track'), fill = node('span', 'rank-fill');
+      fill.style.width = `${data.games[0].heat ? game.heat / data.games[0].heat * 100 : 0}%`;
+      track.append(fill); track.setAttribute('aria-hidden', 'true');
+      const value = node('span', 'rank-value', short(game.heat)); value.title = `${number(game.heat)} 热度`;
+      row.append(node('span', `rank-index ${i < 3 ? 'podium' : ''}`, String(i + 1).padStart(2, '0')), gameLink(game), track, value);
+      $('topTen').append(row);
+    });
+  }
+  function filtered() {
+    const query = $('searchInput').value.trim().toLocaleLowerCase();
+    const method = $('methodSelect').value, platform = $('platformSelect').value;
+    const games = state.data.games.filter(g => (!query || `${g.name} ${g.developer} ${g.id}`.toLocaleLowerCase().includes(query)) &&
+      (method === 'all' || g.method === method) && (platform === 'all' || g.platform === platform));
+    const [key, direction] = $('sortSelect').value.split('-');
+    return games.sort((a, b) => (key === 'name' ? a.name.localeCompare(b.name, 'zh-CN') : a[key] - b[key]) * (direction === 'desc' ? -1 : 1) || a.rank - b.rank);
+  }
+  function renderTable() {
+    if (!state.data) return;
+    const games = filtered(), totalPages = Math.max(1, Math.ceil(games.length / state.size));
+    state.page = Math.min(state.page, totalPages);
+    $('resultCount').textContent = `共 ${number(state.data.games.length)} 款 · 当前筛选 ${number(games.length)} 款`;
+    const body = $('totalBody'); body.replaceChildren();
+    for (const game of games.slice((state.page - 1) * state.size, state.page * state.size)) {
+      const row = node('tr');
+      row.append(node('td', 'rank-index', String(game.rank)));
+      const title = node('td'); title.append(gameLink(game, true)); row.append(title);
+      const method = node('td'); method.append(node('span', `method-badge ${game.method}`, game.method === 'maker' ? 'TapTap 制造' : '其他方式')); row.append(method);
+      row.append(node('td', 'platform-label', labels[game.platform]), node('td', 'num', number(game.heat)), node('td', 'num', number(game.followers)));
+      const action = node('td'), button = node('button', 'btn-sm secondary', '看走势'); button.type = 'button';
+      button.setAttribute('aria-label', `查看 ${game.name} 的走势`);
+      button.addEventListener('click', () => { state.selected = game.id; $('trendSelect').value = game.id; renderTrends(); $('trends').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' }); });
+      action.append(button); row.append(action); body.append(row);
+    }
+    if (!games.length) { const row = node('tr'), cell = node('td', 'empty-state', '没有找到匹配的作品，试试其他关键词或重置筛选。'); cell.colSpan = 7; row.append(cell); body.append(row); }
+    $('pageInfo').textContent = `第 ${state.page} / ${totalPages} 页 · 每页 ${state.size} 款`;
+    $('prevPage').disabled = state.page <= 1; $('nextPage').disabled = state.page >= totalPages;
+  }
+  function chart(id, points, field, reverse = false) {
+    const container = $(id); container.replaceChildren();
+    const valid = points.filter(p => p[field] !== null && p[field] !== undefined);
+    if (valid.length < 2) {
+      const message = node('div', 'chart-empty');
+      if (valid.length) message.append(node('strong', '', `${reverse ? '#' : ''}${number(valid[0][field])}`));
+      message.append(node('div', '', valid.length ? '已记录首个快照，累计两次抓取后显示走势。' : '所选时间范围内暂无该作品的快照。'));
+      container.append(message); return;
+    }
+    const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 560 210'); svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', `${reverse ? '排名' : '热度'}走势：${valid.map(p => `${when(p.ts)} ${p[field]}`).join('；')}`);
+    const values = valid.map(p => p[field]);
+    let min = Math.min(...values), max = Math.max(...values);
+    if (min === max) { min = Math.max(0, min - 1); max += 1; }
+    const first = Date.parse(points[0].ts), last = Date.parse(points.at(-1).ts);
+    const x = p => 55 + (Date.parse(p.ts) - first) / Math.max(1, last - first) * 475;
+    const y = p => reverse ? 20 + (p[field] - min) / (max - min) * 145 : 165 - (p[field] - min) / (max - min) * 145;
+    function part(tag, attributes, text) { const el = document.createElementNS(ns, tag); Object.entries(attributes).forEach(([k,v]) => el.setAttribute(k, String(v))); if (text !== undefined) el.textContent = text; svg.append(el); return el; }
+    for (let i = 0; i < 4; i++) {
+      const yy = 20 + i / 3 * 145, value = reverse ? min + i / 3 * (max - min) : max - i / 3 * (max - min);
+      part('line', { x1: 55, x2: 530, y1: yy, y2: yy, stroke: 'var(--line)' });
+      part('text', { x: 45, y: yy + 4, fill: 'var(--muted)', 'font-size': 10, 'text-anchor': 'end' }, number(Math.round(value)));
+    }
+    // Missing observations remain gaps rather than fabricated zero values.
+    let path = '', connected = false;
+    points.forEach(p => { if (p[field] == null) { connected = false; return; } path += `${connected ? 'L' : 'M'}${x(p)},${y(p)} `; connected = true; });
+    part('path', { d: path, fill: 'none', stroke: reverse ? 'var(--pc)' : 'var(--accent)', 'stroke-width': 2.5, 'stroke-linejoin': 'round' });
+    valid.forEach(p => { const dot = part('circle', { cx: x(p), cy: y(p), r: 3.2, fill: reverse ? 'var(--pc)' : 'var(--accent)' }); const title = document.createElementNS(ns, 'title'); title.textContent = `${when(p.ts)} · ${number(p[field])}`; dot.append(title); });
+    part('text', { x: 55, y: 195, fill: 'var(--muted)', 'font-size': 10 }, when(points[0].ts));
+    part('text', { x: 530, y: 195, fill: 'var(--muted)', 'font-size': 10, 'text-anchor': 'end' }, when(points.at(-1).ts));
+    container.append(svg);
+  }
+  function renderTrends() {
+    const game = state.data.games.find(g => g.id === state.selected) || state.data.games[0];
+    if (!game) return;
+    state.selected = game.id;
+    const cutoff = state.range === 'all' ? 0 : Date.parse(state.data.crawledAt) - (state.range === '24h' ? 86400000 : 7 * 86400000);
+    const points = state.history.filter(s => Date.parse(s.ts) >= cutoff).map(s => { const value = s.games[game.id]; return { ts: s.ts, heat: value?.[0] ?? null, rank: value?.[2] ?? null }; });
+    $('historyCount').textContent = `${points.length} 个快照`;
+    $('selectedStats').replaceChildren();
+    for (const [label, value] of [['当前作品', game.name], ['热度', number(game.heat)], ['关注', number(game.followers)], ['总榜排名', `#${game.rank}`]]) { const item = node('span', '', label); item.append(node('strong', '', value)); $('selectedStats').append(item); }
+    chart('heatChart', points, 'heat'); chart('rankChart', points, 'rank', true);
+  }
+  function sources() {
+    const data = state.data, body = $('sourceDetails'); body.replaceChildren();
+    body.append(node('p', '', `数据抓取：${when(data.startedAt)} — ${when(data.crawledAt)}（北京时间）。已收录 ${number(data.games.length)} 款本届公开作品。`));
+    const list = node('ul');
+    [
+      '赛事：TapTap 聚光灯 2026 年 21 天游戏创作挑战，官方赛事 ID 28，主题「涌现」。',
+      data.coverage?.description || '以官方赛事目录为入口，按 TapTap 游戏 ID 去重。',
+      '热度取公开作品详情 stat.hits_total；关注取 stat.fans_count。列表中的占位统计不参与计算。零热度仅指详情明确返回 0 的作品。',
+      'TapTap 制造按官方「TapTap制造」标签识别；未带此标签的作品归入其他方式。分类不等同于对实际引擎或 AI 使用情况的鉴定。',
+      '平台依据 supported_platforms；同时包含 PC 和 Android/iOS 归为双端，仅移动与仅 PC 互斥。未标明的平台单独统计。',
+      '中位数基于已收录作品计算；热度破万指严格大于 10,000。热度相同按游戏 ID 排序，便于比较快照。',
+      '采集需要时间，各作品数据并非同一秒更新。历史走势只使用实际保存的快照，不补造历史点。'
+    ].forEach(text => list.append(node('li', '', text)));
+    body.append(list);
+  }
+  function exportCsv() {
+    // Prevent spreadsheet formula execution from external game/developer names.
+    const cell = value => { let text = String(value ?? ''); if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`; return `"${text.replaceAll('"', '""')}"`; };
+    const rows = [['总榜排名','游戏ID','作品','开发者','开发方式','平台','热度','关注数','TapTap链接','统计时间'], ...filtered().map(g => [g.rank,g.id,g.name,g.developer,g.method === 'maker' ? 'TapTap 制造' : '其他方式',labels[g.platform],g.heat,g.followers,`https://www.taptap.cn/app/${g.id}`,state.data.crawledAt])];
+    const blob = new Blob(['\uFEFF', rows.map(row => row.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob), link = node('a'); link.href = url; link.download = `聚光灯2026-${state.data.crawledAt.slice(0,10)}.csv`; document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function themeLabel() { const light = document.documentElement.dataset.theme === 'light'; $('themeToggle').textContent = light ? '☾' : '☀'; $('themeToggle').setAttribute('aria-label', `切换${light ? '深' : '浅'}色主题`); }
+  $('themeToggle').addEventListener('click', () => { const theme = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'; document.documentElement.dataset.theme = theme; try { localStorage.setItem('spotlight-theme', theme); } catch {} themeLabel(); });
+  themeLabel();
+  ['searchInput','methodSelect','platformSelect','sortSelect'].forEach(id => $(id).addEventListener(id === 'searchInput' ? 'input' : 'change', () => { state.page = 1; renderTable(); }));
+  $('resetFilters').addEventListener('click', () => { $('searchInput').value = ''; $('methodSelect').value = 'all'; $('platformSelect').value = 'all'; $('sortSelect').value = 'heat-desc'; state.page = 1; renderTable(); });
+  $('prevPage').addEventListener('click', () => { state.page--; renderTable(); });
+  $('nextPage').addEventListener('click', () => { state.page++; renderTable(); });
+  $('trendSelect').addEventListener('change', () => { state.selected = $('trendSelect').value; renderTrends(); });
+  $('rangeSeg').addEventListener('click', event => { const button = event.target.closest('button'); if (!button || !state.data) return; state.range = button.dataset.range; [...$('rangeSeg').children].forEach(b => { b.classList.toggle('active', b === button); b.setAttribute('aria-pressed', b === button ? 'true' : 'false'); }); renderTrends(); });
+  $('exportButton').addEventListener('click', exportCsv);
+  ['sourceButton','footerSource'].forEach(id => $(id).addEventListener('click', () => { if (state.data) sources(); $('sourceDialog').showModal(); }));
+  $('closeDialog').addEventListener('click', () => $('sourceDialog').close());
+  $('sourceDialog').addEventListener('click', event => { if (event.target === $('sourceDialog')) { const box = event.target.getBoundingClientRect(); if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) event.target.close(); } });
+  function initialize(bundle) {
+    if (!bundle?.latest?.games?.length) throw new Error('没有可用的参赛作品快照');
+    state.data = bundle.latest; state.history = bundle.history?.snapshots || [];
+    overview(); renderTable();
+    $('trendSelect').replaceChildren();
+    state.data.games.forEach(game => { const option = node('option', '', `#${game.rank} ${game.name}`); option.value = game.id; $('trendSelect').append(option); });
+    if (!state.data.games.some(g => g.id === state.selected)) state.selected = state.data.games[0].id;
+    $('trendSelect').value = state.selected; renderTrends(); $('exportButton').disabled = false;
+  }
+  try { initialize(window.SPOTLIGHT_DATA); } catch (error) {
+    $('statusPill').textContent = '数据加载失败'; $('statusPill').className = 'status err';
+    $('dataNotice').hidden = false; $('dataNotice').textContent = `暂时无法读取数据：${error.message}。请先运行抓取和构建脚本。`;
+    $('topTen').replaceChildren(node('p', 'empty-state', '没有可用数据。'));
+  }
+})();

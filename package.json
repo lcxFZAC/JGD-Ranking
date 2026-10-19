@@ -1,0 +1,14 @@
+{
+  "name": "spotlight-2026-ranking",
+  "version": "1.0.0",
+  "private": true,
+  "description": "2026 TapTap 聚光灯 GameJam 公开作品数据看板",
+  "scripts": {
+    "dev": "node scripts/serve.js",
+    "crawl": "python scripts/crawl.py",
+    "discover": "python scripts/discovery.py",
+    "build": "node scripts/build.js",
+    "test": "python -m unittest discover -s tests -v",
+    "update": "python scripts/crawl.py && node scripts/build.js"
+  }
+}
