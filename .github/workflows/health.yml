@@ -39,7 +39,7 @@ jobs:
               if (!response.ok) throw new Error(`HTTP ${response.status}`);
               const data = await response.json();
               const age = Date.now() - Date.parse(data.crawledAt);
-              if (data.eventId !== 28 || !Number.isFinite(age) || age > 6*3600000 || age < -300000) throw new Error(`线上快照无效或超过 6 小时未更新：${data.crawledAt}`);
+              if (data.eventId !== 28 || !Number.isFinite(age) || age > 3.5*3600000 || age < -300000) throw new Error(`线上快照无效或超过 3.5 小时未更新：${data.crawledAt}`);
             } catch(error) { problem = `线上新鲜度检查失败：${error.message}`; }
             await alert({github,context,core}, '网站数据过期或不可访问', problem);
             if (problem) core.setFailed(problem);

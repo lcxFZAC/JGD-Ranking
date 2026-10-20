@@ -120,7 +120,7 @@
   function updateFreshness() {
     if (!state.data) return;
     const ts = state.data.crawledAt;
-    const stale = Date.now() - Date.parse(ts) > 6 * 3600000;
+    const stale = Date.now() - Date.parse(ts) > 3.5 * 3600000;
     $('statusPill').textContent = `${stale ? '数据待更新' : '快照已更新'} · ${when(ts)} 北京时间`;
     $('statusPill').className = `status ${stale ? '' : 'ok'}`;
     $('statusPill').title = '每 3 小时计划采集，失败后 05 分重试；数据独立更新，无需重新部署网站。GitHub 调度和缓存可能延迟。';

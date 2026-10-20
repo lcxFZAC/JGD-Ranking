@@ -16,6 +16,8 @@ on:
   schedule:
     - cron: '0 */3 * * *'
     - cron: '5 */3 * * *'
+    # Off-peak recovery: the window gate skips this when already refreshed.
+    - cron: '17 * * * *'
 
 permissions:
   contents: write
