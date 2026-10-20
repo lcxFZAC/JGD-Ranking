@@ -22,7 +22,8 @@ permissions:
   issues: write
 
 concurrency:
-  group: spotlight-data
+  # Read-only push validation must not queue behind a long catalogue refresh.
+  group: ${{ github.event_name == 'push' && 'spotlight-validation' || 'spotlight-data' }}
   cancel-in-progress: false
 
 jobs:
