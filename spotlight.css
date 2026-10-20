@@ -173,6 +173,16 @@ body { background:radial-gradient(ellipse at 75% 0,rgba(255,224,68,.13),transpar
 .daily-cta { color:var(--accent);font-size:12px;font-weight:700; }
 @media(max-width:760px) { .daily-grid { grid-template-columns:1fr; } }
 
-#refreshFeedback { flex-basis:100%; max-width:560px; line-height:1.5; }
-#statusPill { font:inherit; cursor:pointer; }
+#refreshFeedback { flex:0 0 auto; line-height:1.5; white-space:nowrap; }
+#statusPill { font-family:inherit; font-size:12px; cursor:pointer; white-space:nowrap; flex-shrink:0; }
 #statusPill:disabled { cursor:progress; opacity:.7; }
+
+/* Let header groups wrap as whole controls, never squeeze their text. */
+.topbar { flex-wrap:wrap; }
+.top-actions { flex-wrap:wrap; row-gap:8px; max-width:100%; }
+.top-actions > .btn, .top-actions > .theme-toggle { flex-shrink:0; white-space:nowrap; }
+#refreshFeedback:empty { display:none; }
+@media (max-width:600px) {
+  #refreshFeedback { order:4; flex-basis:100%; }
+  .top-actions > .btn { margin-left:0; }
+}
