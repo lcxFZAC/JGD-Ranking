@@ -5,6 +5,7 @@ import json
 import pathlib
 import statistics
 import time
+import urllib.error
 from taptap import get, EVENT_ID
 from protection import retain, check_snapshot, check_size
 
@@ -79,6 +80,18 @@ def event_ids():
     return ids
 
 
+def collect_ids(registry):
+    """A discovery outage must not prevent refreshing verified entries."""
+    ids = set(registry['ids'])
+    try:
+        ids.update(event_ids())
+    except (urllib.error.URLError, TimeoutError, ValueError) as error:
+        if not ids:
+            raise
+        print(f'::warning::Event discovery unavailable; refreshing {len(ids)} registered games: {error}', flush=True)
+    return ids
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--from-discovery', action='store_true', help='Use locally verified discovery results for the initial import')
@@ -95,7 +108,7 @@ def main():
         discovered = json.loads((ROOT / '.cache/discovered.json').read_text(encoding='utf-8'))
         ids = set(discovered)
     else:
-        ids = event_ids()
+        ids = collect_ids(registry)
     ids.update(registry['ids'])
     ids = sorted(ids, key=int)
     games, missing = [], []

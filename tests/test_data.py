@@ -1,8 +1,10 @@
 import pathlib
 import sys
 import unittest
+from unittest.mock import patch
+import urllib.error
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]/'scripts'))
-from crawl import normalize, summarize
+from crawl import normalize, summarize, collect_ids
 
 
 def raw(gid=1, heat=0, platforms=None, maker=False):
@@ -12,6 +14,16 @@ def raw(gid=1, heat=0, platforms=None, maker=False):
 
 
 class StatisticsTest(unittest.TestCase):
+    def test_discovery_outage_preserves_registry(self):
+        with patch('crawl.event_ids', side_effect=urllib.error.URLError('temporary outage')):
+            self.assertEqual(collect_ids({'ids': ['1', '2']}), {'1', '2'})
+            with self.assertRaises(urllib.error.URLError):
+                collect_ids({'ids': []})
+
+    def test_discovery_adds_new_entries(self):
+        with patch('crawl.event_ids', return_value={'2', '3'}):
+            self.assertEqual(collect_ids({'ids': ['1', '2']}), {'1', '2', '3'})
+
     def test_platforms_are_mutually_exclusive(self):
         games=[normalize(raw(i,platforms=p)) for i,p in enumerate([['pc','android'],['android','ios'],['pc'],[],['pc','steam']])]
         self.assertEqual([g['platform'] for g in games],['dual','mobile','pc','unknown','pc'])

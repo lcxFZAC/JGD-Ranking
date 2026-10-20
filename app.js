@@ -87,10 +87,7 @@
     const data = state.data, s = data.summary;
     $('workCount').textContent = number(s.total);
     $('snapshotTime').textContent = `统计时间 ${when(data.crawledAt)}（北京时间） · 点击作品图标跳转 TapTap`;
-    const age = Date.now() - Date.parse(data.crawledAt);
-    $('statusPill').textContent = age > 14400000 ? '数据待更新' : '快照已更新';
-    $('statusPill').className = `status ${age > 14400000 ? '' : 'ok'}`;
-    $('statusPill').title = `抓取完成于 ${when(data.crawledAt)}`;
+    updateFreshness();
     $('overviewKpis').replaceChildren(
       kpi('TapTap 制造', number(s.maker), 'mobile', '使用 TapTap 制造标签的作品'),
       kpi('其他方式开发', number(s.other), '', '其他已收录参赛作品'),
@@ -119,6 +116,14 @@
       row.append(node('span', `rank-index ${i < 3 ? 'podium' : ''}`, String(i + 1).padStart(2, '0')), gameLink(game), track, value);
       $('topTen').append(row);
     });
+  }
+  function updateFreshness() {
+    if (!state.data) return;
+    const ts = state.data.crawledAt;
+    const stale = Date.now() - Date.parse(ts) > 6 * 3600000;
+    $('statusPill').textContent = `${stale ? '数据待更新' : '快照已更新'} · ${when(ts)} 北京时间`;
+    $('statusPill').className = `status ${stale ? '' : 'ok'}`;
+    $('statusPill').title = '显示实际抓取完成时间；通常每 3 小时采集，计划任务可能延迟。';
   }
   function filtered() {
     const query = $('searchInput').value.trim().toLocaleLowerCase();
@@ -231,16 +236,43 @@
   function initialize(bundle) {
     if (!bundle?.latest?.games?.length) throw new Error('没有可用的参赛作品快照');
     state.data = bundle.latest; state.history = bundle.history?.snapshots || [];
-    overview(); renderTable(); hourlyRecommendations();
-    setInterval(hourlyRecommendations,60000);
+    overview(); renderTable();
+    if ($('dailyDate')) delete $('dailyDate').dataset.hour;
+    hourlyRecommendations();
     $('trendSelect').replaceChildren();
     state.data.games.forEach(game => { const option = node('option', '', `#${game.rank} ${game.name}`); option.value = game.id; $('trendSelect').append(option); });
     if (!state.data.games.some(g => g.id === state.selected)) state.selected = state.data.games[0].id;
     $('trendSelect').value = state.selected; renderTrends(); $('exportButton').disabled = false;
+  }
+  let refreshing = false;
+  async function refreshSnapshot() {
+    if (location.protocol === 'file:' || refreshing) return;
+    refreshing = true;
+    try {
+      const [latest, history] = await Promise.all(['latest', 'history'].map(async name => {
+        const response = await fetch(`./data/${name}.json`, { cache: 'no-store', signal: AbortSignal.timeout(30000) });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      }));
+      if (latest.eventId !== 28 || history.eventId !== 28 ||
+          !Number.isFinite(Date.parse(latest.crawledAt)) ||
+          !history.snapshots?.some(item => item.ts === latest.crawledAt)) {
+        throw new Error('快照与历史数据不一致，稍后重试');
+      }
+      if (!state.data || Date.parse(latest.crawledAt) > Date.parse(state.data.crawledAt)) initialize({ latest, history });
+      updateFreshness();
+    } catch (error) {
+      updateFreshness();
+      $('statusPill').title = `检查更新失败，保留上次快照：${error.message}`;
+    } finally { refreshing = false; }
   }
   try { initialize(window.SPOTLIGHT_DATA); } catch (error) {
     $('statusPill').textContent = '数据加载失败'; $('statusPill').className = 'status err';
     $('dataNotice').hidden = false; $('dataNotice').textContent = `暂时无法读取数据：${error.message}。请先运行抓取和构建脚本。`;
     $('topTen').replaceChildren(node('p', 'empty-state', '没有可用数据。'));
   }
+  refreshSnapshot();
+  setInterval(() => { updateFreshness(); if (state.data) hourlyRecommendations(); }, 60000);
+  setInterval(refreshSnapshot, 5 * 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshSnapshot(); });
 })();
