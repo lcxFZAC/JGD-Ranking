@@ -66,6 +66,7 @@ jobs:
           node tests/test_alert.cjs
           node tests/test_refresh.cjs
           node tests/test_build.cjs
+          node tests/test_shell_cache.cjs
       - name: Save verified snapshots
         if: steps.crawl.outcome == 'success'
         shell: bash

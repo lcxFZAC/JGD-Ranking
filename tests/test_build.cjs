@@ -20,6 +20,13 @@ for (const [file,key] of [['catalogue','catalogueHash'],['history','historyHash'
 }
 const html = fs.readFileSync('dist/index.html','utf8');
 assert.ok(!html.includes('src="./data/dashboard.js"'),'Full offline bundle must not block online startup');
-assert.ok(html.includes('defer src="./data/bootstrap.js"'));
+assert.ok(!/<script[^>]+src=/.test(html),'First-screen scripts must not depend on additional connections');
+assert.ok(!/<link[^>]+rel="stylesheet"/.test(html),'First-screen styles must be available in the HTML');
+assert.ok(html.includes('window.SPOTLIGHT_DATA='));
+assert.ok(html.includes('<style>'));
+assert.ok(html.includes('./static/zaowuguo-icon.'));
+assert.ok(!html.includes('./assets/zaowuguo-icon.jpg'));
+assert.ok(require('node:zlib').gzipSync(html).length < 40000,'Keep compressed single-response shell under 40 KB');
+assert.ok(!fs.readFileSync('dist/service-worker.js','utf8').includes('__REVISION__'));
 assert.ok(fs.statSync('data/version.json').size < 512);
 console.log('First-screen budget, complete catalogue and publication manifest tests passed');

@@ -328,4 +328,11 @@
   }
   scheduleRefresh();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshSnapshot(); });
+  if (location.protocol === 'https:' && 'serviceWorker' in navigator) {
+    const reportCache = () => { document.documentElement.dataset.shellCache = navigator.serviceWorker.controller ? 'active' : 'pending'; };
+    reportCache();
+    navigator.serviceWorker.addEventListener('controllerchange', reportCache);
+    // Installing the repeat-visit cache must not compete with initial rendering.
+    setTimeout(() => navigator.serviceWorker.register('./service-worker.js', {updateViaCache:'none'}).catch(() => {}), 3000);
+  }
 })();
