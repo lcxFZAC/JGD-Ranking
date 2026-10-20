@@ -27,9 +27,11 @@
 
 ## 三、自动更新
 
-GitHub Actions → Update Spotlight dashboard 每小时整点计划抓取，05 分检查本小时快照，若未成功则重试。GitHub 可能延迟执行。北京时间 08 点任务在发布快照后补查目录，新增名单供下一次抓取使用。抓取成功后提交 data/*.json，Cloudflare 监听提交并发布。普通代码提交也会触发部署。
+GitHub Actions 每 3 小时整点抓取：北京时间 02、05、08、11、14、17、20、23 点；对应 05 分在本周期没有成功快照时重试。GitHub 调度可能延迟。08 点任务发布数据后补查目录。
 
-每小时发布约需每月 720–744 次构建，另加代码和目录提交。部署前需确认账户构建额度：若仍是每月 500 次额度，则不足以支撑整月每小时发布。05 分检测到本小时已成功时跳过，不提交、不触发部署。
+数据和目录提交使用 `[CF-Pages-Skip]` 前缀，Cloudflare 跳过部署。页面从 `https://raw.githubusercontent.com/lcxFZAC/JGD-Ranking/main/data/` 读取 latest.json 与 history.json；不再将站点 `/data/latest.json` 当作实时数据源。站点内置数据是代码部署时的兜底快照，保持旧时间是正常现象。数据源无法读取时保留已有快照，并在状态提示中说明检查失败。
+
+定时数据更新不消耗 Pages 构建额度，只在代码更新时构建网站。无需新增付费服务或账号凭据。GitHub Raw 有缓存与可用性限制，不承诺准点可见；定期健康检查分别检查网站可访问及 Raw 数据新鲜度。
 
 手动更新：Actions → Update Spotlight dashboard → Run workflow → 勾选 refresh_data。要补查名单再勾选 full_discovery。两个选项均关闭时仅校验，不产生数据提交。
 
@@ -40,7 +42,7 @@ GitHub Actions → Update Spotlight dashboard 每小时整点计划抓取，05 �
 1. 免费网址打开正常，搜索筛选和造物锅广告跳转正常。
 2. 手动运行 refresh_data，等待成功。
 3. main 出现 chore(data): refresh Spotlight snapshot 提交。
-4. Cloudflare Deployments 出现对应提交的生产部署且成功。
+4. 数据提交带 `[CF-Pages-Skip]`，不产生新的 Cloudflare 部署。
 5. 刷新网页，统计时间更新。
 
 只有完成这些检查，才算验证自动更新成功。
@@ -51,8 +53,8 @@ GitHub Actions → Update Spotlight dashboard 每小时整点计划抓取，05 �
 - 构建失败：检查 Node 22、构建命令和 dist；本地 npm run build 验证。
 - 数据提交 403：检查 Actions 写入权限、组织策略和 main 分支保护。不要扩大其他仓库权限。
 - TapTap 抓取失败：保留旧数据，检查日志；GitHub 节点可能被限流，可重试或调整抓取环境。不将错误填成零。
-- 新提交未部署：检查 main 自动部署开关、Git 集成和构建额度。
-- 网页数据旧：确认成功部署的提交，再硬刷新并核对统计时间。
+- 代码提交未部署：检查 main 自动部署开关、Git 集成和构建额度；数据提交跳过部署是预期行为。
+- 网页数据旧：核对 GitHub Raw 数据时间、网络可达性及页面状态提示。
 - 定时更新暂停：检查 Actions 是否启用，公共仓库长期不活跃时计划任务可能暂停。
 - 旧 GitHub Pages 工作流报错：看最新提交的运行记录，新版本已删除该发布步骤。不再使用旧站时可到 GitHub Settings → Pages 取消发布。
 

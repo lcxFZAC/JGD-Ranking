@@ -123,7 +123,7 @@
     const stale = Date.now() - Date.parse(ts) > 6 * 3600000;
     $('statusPill').textContent = `${stale ? '数据待更新' : '快照已更新'} · ${when(ts)} 北京时间`;
     $('statusPill').className = `status ${stale ? '' : 'ok'}`;
-    $('statusPill').title = '显示实际抓取完成时间；每小时整点计划采集，失败后 05 分重试，任务和部署可能延迟。';
+    $('statusPill').title = '每 3 小时计划采集，失败后 05 分重试；数据独立更新，无需重新部署网站。GitHub 调度和缓存可能延迟。';
   }
   function filtered() {
     const query = $('searchInput').value.trim().toLocaleLowerCase();
@@ -250,7 +250,7 @@
     refreshing = true;
     try {
       const [latest, history] = await Promise.all(['latest', 'history'].map(async name => {
-        const response = await fetch(`./data/${name}.json`, { cache: 'no-store', signal: AbortSignal.timeout(30000) });
+        const response = await fetch(`https://raw.githubusercontent.com/lcxFZAC/JGD-Ranking/main/data/${name}.json`, { cache: 'no-store', signal: AbortSignal.timeout(30000) });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();
       }));

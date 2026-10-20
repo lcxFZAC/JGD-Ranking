@@ -15,6 +15,7 @@ const context = vm.createContext({
   $:()=>pill, updateFreshness:()=>{},
   initialize:bundle=>{applied++;context.state.data=bundle.latest;},
   fetch:async (url, options)=>{
+    assert.match(url, /^https:\/\/raw\.githubusercontent\.com\/lcxFZAC\/JGD-Ranking\/main\/data\/(latest|history)\.json$/);
     assert.equal(options.cache, 'no-store');
     if (fail) throw new Error('offline');
     return {ok:true,json:async()=>url.includes('latest') ? latest : mismatch ? {...history,snapshots:[]} : history};
