@@ -20,7 +20,7 @@
     const icon = node('img', 'game-icon');
     if (String(game.id) === '961322') icon.src = './assets/zaowuguo-icon.jpg';
     else if (/^https:\/\/(?:[\w-]+\.)*tapimg\.com\//.test(game.icon)) icon.src = game.icon;
-    icon.alt = ''; icon.loading = 'lazy'; icon.referrerPolicy = 'no-referrer';
+    icon.alt = ''; icon.loading = 'lazy'; icon.decoding = 'async'; icon.fetchPriority = 'low'; icon.width = 34; icon.height = 34; icon.referrerPolicy = 'no-referrer';
     icon.addEventListener('error', () => { icon.removeAttribute('src'); icon.alt = '✦'; }, { once: true });
     const text = node('span'); text.style.minWidth = '0';
     const name = node('span', 'game-name', game.name); name.title = game.name;

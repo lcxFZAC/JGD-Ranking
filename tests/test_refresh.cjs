@@ -18,7 +18,8 @@ const initial = {...latest,partial:true};
   const client = new DataClient({fetcher,storage,initial});
   assert.equal(client.catalogue.partial,true);
   await client.check(); assert.equal(calls.length,2);
-  assert.ok(calls[0].endsWith('version.json'));
+  assert.ok(calls[0].endsWith('catalogue.json'));
+  assert.ok(calls[1].endsWith('version.json'));
   assert.ok(!calls.some(url=>url.includes('history')));
   await client.check(); assert.equal(calls.length,3,'Unchanged version only downloads manifest');
   const returning = new DataClient({fetcher,storage,initial});
@@ -42,6 +43,20 @@ const initial = {...latest,partial:true};
   const concurrent = new DataClient({fetcher,storage:null,initial});
   version = {...version,version:data.crawledAt}; const before = calls.length;
   await Promise.all([concurrent.check(),concurrent.check()]); assert.equal(calls.length-before,2);
+  // Hold the manifest open: the catalogue must already be in flight.
+  let releaseManifest;
+  const coldCalls = [];
+  const coldClient = new DataClient({storage:null,initial,fetcher:async url=>{
+    coldCalls.push(url);
+    if(url.endsWith('version.json')) await new Promise(resolve=>{releaseManifest=resolve;});
+    return {ok:true,json:async()=>url.endsWith('version.json')?version:data};
+  }});
+  const coldCheck = coldClient.check();
+  assert.equal(coldCalls.length,2,'Cold catalogue does not wait for manifest round trip');
+  releaseManifest(); await coldCheck;
+  const staleClient = new DataClient({storage:null,initial,fetcher:async url=>({ok:true,json:async()=>
+    url.endsWith('version.json') ? version : url.includes('?v=') ? data : latest})});
+  assert.equal((await staleClient.check()).crawledAt,version.version,'Stale speculative response retries versioned URL');
   const source = fs.readFileSync('app.js','utf8');
   const schedulingCode = source.slice(source.indexOf('  function scheduleRefresh()'),source.indexOf("  document.addEventListener('visibilitychange'"));
   for (const [date,expected] of [['2026-10-20T04:59:32Z',28000],['2026-10-20T05:00:00Z',300000]]) {
@@ -51,3 +66,4 @@ const initial = {...latest,partial:true};
   }
   console.log('Version-only checks, cache, lazy history, independent failures, CDN race, deduplication and clock tests passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});
+

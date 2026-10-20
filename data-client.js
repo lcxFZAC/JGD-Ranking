@@ -39,13 +39,19 @@
       return this.pending;
     }
     async checkOnce() {
+      // Only cold visitors speculate; returning visitors retain version-only checks.
+      // Settle errors immediately so a failed speculative request is never unhandled.
+      const cold = this.catalogue.partial
+        ? this.json(this.base + 'catalogue.json').then(data => ({data}), () => ({data:null})) : null;
       const manifest = await this.json(this.base + 'version.json');
       if (manifest.eventId !== 28 || !Number.isFinite(Date.parse(manifest.version)) ||
           !/^[a-f0-9]{64}$/.test(manifest.catalogueHash) || !/^[a-f0-9]{64}$/.test(manifest.historyHash)) throw new Error('版本信息无效');
       // A stale CDN response may never roll the displayed snapshot backwards.
       if (Date.parse(manifest.version) < Date.parse(this.catalogue.crawledAt)) return this.catalogue;
       if (this.catalogue.partial || this.catalogue.crawledAt !== manifest.version) {
-        const data = await this.json(this.base + 'catalogue.json?v=' + manifest.catalogueHash);
+        const candidate = cold ? (await cold).data : null;
+        const data = candidate?.crawledAt === manifest.version && validCatalogue(candidate)
+          ? candidate : await this.json(this.base + 'catalogue.json?v=' + manifest.catalogueHash);
         if (data.crawledAt !== manifest.version) throw new Error('榜单版本尚未同步，稍后重试');
         this.save(data);
       }
