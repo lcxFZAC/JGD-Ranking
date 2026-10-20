@@ -6,7 +6,7 @@
   const short = (n) => n >= 10000 ? `${(n / 10000).toFixed(1)}万` : number(n);
   const when = (value) => new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(value)).replaceAll('/', '-');
   const labels = { dual: 'PC + 移动', mobile: '仅移动端', pc: '仅 PC', unknown: '未标明' };
-  const state = { data: null, history: [], page: 1, size: 30, range: '24h', selected: '961322' };
+  const state = { data: null, history: [], trendsVisible: false, historyVersion: null, page: 1, size: 30, range: '24h', selected: '961322' };
   const node = (tag, className, text) => {
     const result = document.createElement(tag);
     if (className) result.className = className;
@@ -137,7 +137,7 @@
     if (!state.data) return;
     const games = filtered(), totalPages = Math.max(1, Math.ceil(games.length / state.size));
     state.page = Math.min(state.page, totalPages);
-    $('resultCount').textContent = `共 ${number(state.data.games.length)} 款 · 当前筛选 ${number(games.length)} 款`;
+    $('resultCount').textContent = state.data.partial ? `共 ${number(state.data.summary.total)} 款 · 先显示热度前 30 款，完整榜单加载中…` : `共 ${number(state.data.games.length)} 款 · 当前筛选 ${number(games.length)} 款`;
     const body = $('totalBody'); body.replaceChildren();
     for (const game of games.slice((state.page - 1) * state.size, state.page * state.size)) {
       const row = node('tr');
@@ -147,7 +147,7 @@
       row.append(node('td', 'platform-label', labels[game.platform]), node('td', 'num', number(game.heat)), node('td', 'num', number(game.followers)));
       const action = node('td'), button = node('button', 'btn-sm secondary', '看走势'); button.type = 'button';
       button.setAttribute('aria-label', `查看 ${game.name} 的走势`);
-      button.addEventListener('click', () => { state.selected = game.id; $('trendSelect').value = game.id; renderTrends(); $('trends').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' }); });
+      button.addEventListener('click', () => { state.selected = game.id; activateTrends(); $('trends').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' }); });
       action.append(button); row.append(action); body.append(row);
     }
     if (!games.length) { const row = node('tr'), cell = node('td', 'empty-state', '没有找到匹配的作品，试试其他关键词或重置筛选。'); cell.colSpan = 7; row.append(cell); body.append(row); }
@@ -188,19 +188,20 @@
     container.append(svg);
   }
   function renderTrends() {
+    if (!state.trendsVisible || !state.data) return;
     const game = state.data.games.find(g => g.id === state.selected) || state.data.games[0];
     if (!game) return;
     state.selected = game.id;
     const cutoff = state.range === 'all' ? 0 : Date.parse(state.data.crawledAt) - (state.range === '24h' ? 86400000 : 7 * 86400000);
     const points = state.history.filter(s => Date.parse(s.ts) >= cutoff).map(s => { const value = s.games[game.id]; return { ts: s.ts, heat: value?.[0] ?? null, rank: value?.[2] ?? null }; });
-    $('historyCount').textContent = `${points.length} 个快照`;
+    $('historyCount').textContent = state.historyVersion ? `${points.length} 个快照${state.historyVersion !== state.data.crawledAt ? ' · 历史更新中' : ''}` : '历史数据加载中…';
     $('selectedStats').replaceChildren();
     for (const [label, value] of [['当前作品', game.name], ['热度', number(game.heat)], ['关注', number(game.followers)], ['总榜排名', `#${game.rank}`]]) { const item = node('span', '', label); item.append(node('strong', '', value)); $('selectedStats').append(item); }
     chart('heatChart', points, 'heat'); chart('rankChart', points, 'rank', true);
   }
   function sources() {
     const data = state.data, body = $('sourceDetails'); body.replaceChildren();
-    body.append(node('p', '', `数据抓取：${when(data.startedAt)} — ${when(data.crawledAt)}（北京时间）。已收录 ${number(data.games.length)} 款本届公开作品。`));
+    body.append(node('p', '', `数据抓取：${when(data.startedAt)} — ${when(data.crawledAt)}（北京时间）。已收录 ${number(data.summary.total)} 款本届公开作品。`));
     const list = node('ul');
     [
       '赛事：TapTap 聚光灯 2026 年 21 天游戏创作挑战，官方赛事 ID 28，主题「涌现」。',
@@ -235,50 +236,95 @@
   $('sourceDialog').addEventListener('click', event => { if (event.target === $('sourceDialog')) { const box = event.target.getBoundingClientRect(); if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) event.target.close(); } });
   function initialize(bundle) {
     if (!bundle?.latest?.games?.length) throw new Error('没有可用的参赛作品快照');
-    state.data = bundle.latest; state.history = bundle.history?.snapshots || [];
+    state.data = bundle.latest;
+    if (bundle.history) {
+      state.history = bundle.history.snapshots || [];
+      state.historyVersion = state.data.crawledAt;
+    }
     overview(); renderTable();
     if ($('dailyDate')) delete $('dailyDate').dataset.hour;
-    hourlyRecommendations();
-    $('trendSelect').replaceChildren();
-    state.data.games.forEach(game => { const option = node('option', '', `#${game.rank} ${game.name}`); option.value = game.id; $('trendSelect').append(option); });
-    if (!state.data.games.some(g => g.id === state.selected)) state.selected = state.data.games[0].id;
-    $('trendSelect').value = state.selected; renderTrends(); $('exportButton').disabled = false;
+    if (!state.data.partial) hourlyRecommendations();
+    else $('dailyDate').textContent = '完整榜单加载后显示推荐';
+    for (const id of ['searchInput','methodSelect','platformSelect','sortSelect','exportButton']) $(id).disabled = !!state.data.partial;
+    if (state.trendsVisible) populateTrends();
+    if (!document.documentElement.dataset.overviewReadyMs) document.documentElement.dataset.overviewReadyMs = String(Math.round(performance.now()));
   }
+  function populateTrends() {
+    const select = $('trendSelect');
+    if (select.dataset.version !== state.data.crawledAt || select.options.length !== state.data.games.length) {
+      const fragment = document.createDocumentFragment();
+      state.data.games.forEach(game => { const option = node('option', '', `#${game.rank} ${game.name}`); option.value = game.id; fragment.append(option); });
+      select.replaceChildren(fragment); select.dataset.version = state.data.crawledAt;
+    }
+    if (!state.data.games.some(g => g.id === state.selected)) state.selected = state.data.games[0].id;
+    select.value = state.selected; renderTrends();
+  }
+  async function activateTrends() {
+    state.trendsVisible = true;
+    if (!state.data) return;
+    populateTrends();
+    if (location.protocol === 'file:') return;
+    try {
+      const history = await client.loadHistory();
+      state.history = history.snapshots;
+      state.historyVersion = history.snapshots.at(-1)?.ts;
+      renderTrends();
+    } catch (error) {
+      $('historyCount').textContent = state.history.length ? '历史更新失败，显示已有记录' : '历史加载失败，点击重试';
+      $('historyCount').title = error.message;
+    }
+  }
+  let storage;
+  try { storage = localStorage; } catch {}
+  const client = new window.SpotlightDataClient({fetcher: (...args) => fetch(...args), storage, initial: window.SPOTLIGHT_DATA.latest,
+    base: ['localhost','127.0.0.1'].includes(location.hostname) ? './data/' : undefined});
   let refreshing = false;
   async function refreshSnapshot() {
     if (location.protocol === 'file:' || refreshing) return;
     refreshing = true;
     try {
-      const [latest, history] = await Promise.all(['latest', 'history'].map(async name => {
-        const response = await fetch(`https://raw.githubusercontent.com/lcxFZAC/JGD-Ranking/main/data/${name}.json`, { cache: 'no-store', signal: AbortSignal.timeout(30000) });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-      }));
-      if (latest.eventId !== 28 || history.eventId !== 28 ||
-          !Number.isFinite(Date.parse(latest.crawledAt)) ||
-          !history.snapshots?.some(item => item.ts === latest.crawledAt)) {
-        throw new Error('快照与历史数据不一致，稍后重试');
-      }
-      if (!state.data || Date.parse(latest.crawledAt) > Date.parse(state.data.crawledAt)) initialize({ latest, history });
+      const latest = await client.check();
+      if (state.data !== latest) initialize({latest});
       updateFreshness();
+      if (state.trendsVisible) await activateTrends();
     } catch (error) {
+      try {
+        const latest = await client.localFallback();
+        if (state.data !== latest) initialize({latest});
+      } catch { /* Keep the overview and first 30 entries usable. */ }
       updateFreshness();
       $('statusPill').title = `检查更新失败，保留上次快照：${error.message}`;
     } finally { refreshing = false; }
   }
-  try { initialize(window.SPOTLIGHT_DATA); } catch (error) {
-    $('statusPill').textContent = '数据加载失败'; $('statusPill').className = 'status err';
-    $('dataNotice').hidden = false; $('dataNotice').textContent = `暂时无法读取数据：${error.message}。请先运行抓取和构建脚本。`;
-    $('topTen').replaceChildren(node('p', 'empty-state', '没有可用数据。'));
+  initialize({latest:client.catalogue});
+  if (location.protocol === 'file:') {
+    // Directly opened files cannot fetch JSON. Load the optional offline bundle after first paint.
+    setTimeout(() => {
+      const script = document.createElement('script'); script.src = './data/dashboard.js';
+      script.onload = () => initialize(window.SPOTLIGHT_DATA);
+      document.body.append(script);
+    }, 0);
+  } else {
+    // Give the lightweight overview a paint before starting background requests.
+    requestAnimationFrame(() => setTimeout(refreshSnapshot, 0));
   }
-  refreshSnapshot();
-  setInterval(() => { updateFreshness(); if (state.data) hourlyRecommendations(); }, 60000);
-  // Align checks to wall-clock five-minute boundaries, including :00 and :05.
+  $('historyCount').setAttribute('role', 'button');
+  $('historyCount').tabIndex = 0;
+  $('historyCount').addEventListener('click', activateTrends);
+  $('historyCount').addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') activateTrends(); });
+  $('statusPill').addEventListener('click', refreshSnapshot);
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) { observer.disconnect(); activateTrends(); }
+    }, {rootMargin:'100px'});
+    observer.observe($('trends'));
+  } else {
+    const reveal = () => { if ($('trends').getBoundingClientRect().top < innerHeight + 100) { window.removeEventListener('scroll', reveal); activateTrends(); } };
+    window.addEventListener('scroll', reveal, {passive:true}); reveal();
+  }
+  setInterval(() => { updateFreshness(); if (state.data && !state.data.partial) hourlyRecommendations(); }, 60000);
   function scheduleRefresh() {
-    setTimeout(async () => {
-      await refreshSnapshot();
-      scheduleRefresh();
-    }, 5 * 60000 - Date.now() % (5 * 60000));
+    setTimeout(async () => { await refreshSnapshot(); scheduleRefresh(); }, 5 * 60000 - Date.now() % (5 * 60000));
   }
   scheduleRefresh();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshSnapshot(); });

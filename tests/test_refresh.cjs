@@ -1,48 +1,53 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const source = fs.readFileSync('app.js', 'utf8');
-// Exercise the actual refresh function with controlled network responses.
-const refreshCode = source.slice(source.indexOf('  let refreshing = false;'), source.indexOf('  try { initialize(window.SPOTLIGHT_DATA);'));
-const ts = '2026-10-20T10:00:00+00:00';
-const latest = {eventId:28, crawledAt:ts};
-const history = {eventId:28, snapshots:[{ts}]};
-let applied = 0, fail = false, mismatch = false;
-const pill = {};
-const context = vm.createContext({
-  location:{protocol:'https:'}, state:{data:{crawledAt:'2026-10-19T00:00:00Z'}},
-  AbortSignal, Date, Number, Promise, Error,
-  $:()=>pill, updateFreshness:()=>{},
-  initialize:bundle=>{applied++;context.state.data=bundle.latest;},
-  fetch:async (url, options)=>{
-    assert.match(url, /^https:\/\/raw\.githubusercontent\.com\/lcxFZAC\/JGD-Ranking\/main\/data\/(latest|history)\.json$/);
-    assert.equal(options.cache, 'no-store');
-    if (fail) throw new Error('offline');
-    return {ok:true,json:async()=>url.includes('latest') ? latest : mismatch ? {...history,snapshots:[]} : history};
-  }
-});
-vm.runInContext(refreshCode, context);
-const schedulingCode = source.slice(source.indexOf('  function scheduleRefresh()'), source.indexOf("  document.addEventListener('visibilitychange'"));
-let delay;
-vm.runInNewContext(schedulingCode, {
-  Date: {now:()=>Date.parse('2026-10-20T04:59:32Z')},
-  setTimeout:(_callback, ms)=>{delay=ms;},
-  refreshSnapshot:async()=>{}
-});
-assert.equal(delay, 28000, 'Next refresh must align to the hour, not five minutes after page load');
-vm.runInNewContext(schedulingCode, {
-  Date: {now:()=>Date.parse('2026-10-20T05:00:00Z')},
-  setTimeout:(_callback, ms)=>{delay=ms;},
-  refreshSnapshot:async()=>{}
-});
-assert.equal(delay, 300000, 'Next check after the hour must be at :05');
+const {DataClient} = require('../data-client.js');
+const ts = '2026-10-20T10:00:00Z';
+const latest = {eventId:28, crawledAt:ts, summary:{total:1},games:[{id:'1',name:'test',heat:2,followers:3}]};
+let version = {eventId:28,version:ts,catalogueHash:'a'.repeat(64),historyHash:'b'.repeat(64)};
+let data = latest, failHistory = false;
+const calls = [], saved = new Map();
+const storage = {getItem:key=>saved.get(key),setItem:(key,value)=>saved.set(key,value)};
+const fetcher = async url => {
+  calls.push(url);
+  if (url.includes('history') && failHistory) throw new Error('history offline');
+  return {ok:true,json:async()=>url.includes('version') ? version : url.includes('history') ? {eventId:28,snapshots:[{ts:data.crawledAt,games:{}}]} : data};
+};
+const initial = {...latest,partial:true};
 (async()=>{
-  await context.refreshSnapshot(); assert.equal(applied,1);
-  await context.refreshSnapshot(); assert.equal(applied,1);
-  fail=true; await context.refreshSnapshot(); assert.equal(applied,1);
-  assert.match(pill.title,/offline/);
-  fail=false; mismatch=true; await context.refreshSnapshot(); assert.equal(applied,1);
-  assert.match(pill.title,/不一致/);
-  context.location.protocol='file:'; await context.refreshSnapshot(); assert.equal(applied,1);
-  console.log('Snapshot refresh / unchanged / offline / mismatched / local-file tests passed');
+  const client = new DataClient({fetcher,storage,initial});
+  assert.equal(client.catalogue.partial,true);
+  await client.check(); assert.equal(calls.length,2);
+  assert.ok(calls[0].endsWith('version.json'));
+  assert.ok(!calls.some(url=>url.includes('history')));
+  await client.check(); assert.equal(calls.length,3,'Unchanged version only downloads manifest');
+  const returning = new DataClient({fetcher,storage,initial});
+  assert.equal(returning.catalogue.partial,undefined,'Cached catalogue available before requests');
+  await returning.check(); assert.equal(calls.length,4);
+  await client.loadHistory(); await client.loadHistory();
+  assert.equal(calls.filter(url=>url.includes('history')).length,1);
+  version = {...version,version:'2026-10-20T13:00:00Z',catalogueHash:'c'.repeat(64),historyHash:'d'.repeat(64)};
+  await assert.rejects(client.check(),/尚未同步/);
+  assert.equal(client.catalogue.crawledAt,ts);
+  data = {...latest,crawledAt:version.version}; failHistory = true;
+  await client.check(); assert.equal(client.catalogue.crawledAt,version.version,'History outage never blocks latest');
+  await assert.rejects(client.loadHistory(),/offline/);
+  failHistory = false; await client.loadHistory();
+  version = {...version,version:ts};
+  assert.equal((await client.check()).crawledAt,data.crawledAt,'No rollback on stale manifest');
+  for (const badStorage of [{getItem:()=>'{broken'},{getItem:()=>{throw Error('blocked');},setItem:()=>{throw Error('quota');}}]) {
+    const fallback = new DataClient({fetcher,storage:badStorage,initial});
+    await fallback.localFallback(); assert.equal(fallback.catalogue.games.length,1);
+  }
+  const concurrent = new DataClient({fetcher,storage:null,initial});
+  version = {...version,version:data.crawledAt}; const before = calls.length;
+  await Promise.all([concurrent.check(),concurrent.check()]); assert.equal(calls.length-before,2);
+  const source = fs.readFileSync('app.js','utf8');
+  const schedulingCode = source.slice(source.indexOf('  function scheduleRefresh()'),source.indexOf("  document.addEventListener('visibilitychange'"));
+  for (const [date,expected] of [['2026-10-20T04:59:32Z',28000],['2026-10-20T05:00:00Z',300000]]) {
+    let delay;
+    vm.runInNewContext(schedulingCode,{Date:{now:()=>Date.parse(date)},setTimeout:(_callback,ms)=>{delay=ms;},refreshSnapshot:async()=>{}});
+    assert.equal(delay,expected);
+  }
+  console.log('Version-only checks, cache, lazy history, independent failures, CDN race, deduplication and clock tests passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});
