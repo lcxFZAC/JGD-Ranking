@@ -29,7 +29,7 @@
 
 GitHub Actions 每 3 小时整点抓取：北京时间 02、05、08、11、14、17、20、23 点；对应 05 分在本周期没有成功快照时重试。GitHub 调度可能延迟。08 点任务发布数据后补查目录。
 
-数据和目录提交使用 `[CF-Pages-Skip]` 前缀，Cloudflare 跳过部署。页面从 `https://raw.githubusercontent.com/lcxFZAC/JGD-Ranking/main/data/` 读取 latest.json 与 history.json；不再将站点 `/data/latest.json` 当作实时数据源。站点内置数据是代码部署时的兜底快照，保持旧时间是正常现象。数据源无法读取时保留已有快照，并在状态提示中说明检查失败。
+数据和目录提交使用 `[CF-Pages-Skip]` 前缀，Cloudflare 跳过部署。页面从 `https://raw.githubusercontent.com/lcxFZAC/JGD-Ranking/main/data/` 先读取 version.json，再按需读取 catalogue.json 与 history.json；不再将站点 `/data/latest.json` 当作实时数据源。站点内置数据是代码部署时的兜底快照，保持旧时间是正常现象。数据源无法读取时保留已有快照，并在状态提示中说明检查失败。
 
 定时数据更新不消耗 Pages 构建额度，只在代码更新时构建网站。无需新增付费服务或账号凭据。GitHub Raw 有缓存与可用性限制，不承诺准点可见；定期健康检查分别检查网站可访问及 Raw 数据新鲜度。
 

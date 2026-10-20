@@ -59,7 +59,7 @@ npm test
 
 使用免费的 pages.dev 域名，GitHub 保留源码和数据。构建命令 `node scripts/build.js`，输出目录 `dist`，Node 22。
 
-详细操作见 [部署流程](DEPLOY.md)，交接其他 AI 使用 [部署提示词](DEPLOY-AI-PROMPT.md)。GitHub Actions 每 3 小时整点计划抓取（北京时间 02、05、08、11、14、17、20、23 点），对应 05 分若本周期无成功快照则重试。数据与目录提交带 `[CF-Pages-Skip]`，不触发 Cloudflare Pages 构建；只有代码修改部署网站。在线页面直接读取 GitHub Raw 的 latest/history JSON，五分钟检查一次；构建内置快照仅供首次展示、离线或网络故障时兜底。GitHub 调度及 Raw 缓存可能延迟。每天北京时间 08 点任务发布数据后补查目录。定时数据更新消耗 0 次 Pages 构建，其他代码部署仍受账户额度限制。
+详细操作见 [部署流程](DEPLOY.md)，交接其他 AI 使用 [部署提示词](DEPLOY-AI-PROMPT.md)。GitHub Actions 每 3 小时整点计划抓取（北京时间 02、05、08、11、14、17、20、23 点），对应 05 分若本周期无成功快照则重试。数据与目录提交带 `[CF-Pages-Skip]`，不触发 Cloudflare Pages 构建；只有代码修改部署网站。在线页面通过 GitHub Raw 的 version.json 检查版本，按需读取 catalogue.json 与 history.json，五分钟检查一次；构建内置快照仅供首次展示、离线或网络故障时兜底。GitHub 调度及 Raw 缓存可能延迟。每天北京时间 08 点任务发布数据后补查目录。定时数据更新消耗 0 次 Pages 构建，其他代码部署仍受账户额度限制。
 
 GitHub 工作流不再部署 GitHub Pages。Cloudflare 账号连接和首次建站需按文档完成，并验证数据提交能触发部署后，才能确认自动更新链路正常。
 
