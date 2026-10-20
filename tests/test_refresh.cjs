@@ -21,6 +21,20 @@ const context = vm.createContext({
   }
 });
 vm.runInContext(refreshCode, context);
+const schedulingCode = source.slice(source.indexOf('  function scheduleRefresh()'), source.indexOf("  document.addEventListener('visibilitychange'"));
+let delay;
+vm.runInNewContext(schedulingCode, {
+  Date: {now:()=>Date.parse('2026-10-20T04:59:32Z')},
+  setTimeout:(_callback, ms)=>{delay=ms;},
+  refreshSnapshot:async()=>{}
+});
+assert.equal(delay, 28000, 'Next refresh must align to the hour, not five minutes after page load');
+vm.runInNewContext(schedulingCode, {
+  Date: {now:()=>Date.parse('2026-10-20T05:00:00Z')},
+  setTimeout:(_callback, ms)=>{delay=ms;},
+  refreshSnapshot:async()=>{}
+});
+assert.equal(delay, 300000, 'Next check after the hour must be at :05');
 (async()=>{
   await context.refreshSnapshot(); assert.equal(applied,1);
   await context.refreshSnapshot(); assert.equal(applied,1);

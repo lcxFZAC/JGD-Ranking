@@ -123,7 +123,7 @@
     const stale = Date.now() - Date.parse(ts) > 6 * 3600000;
     $('statusPill').textContent = `${stale ? '数据待更新' : '快照已更新'} · ${when(ts)} 北京时间`;
     $('statusPill').className = `status ${stale ? '' : 'ok'}`;
-    $('statusPill').title = '显示实际抓取完成时间；通常每 3 小时采集，计划任务可能延迟。';
+    $('statusPill').title = '显示实际抓取完成时间；每小时整点计划采集，失败后 05 分重试，任务和部署可能延迟。';
   }
   function filtered() {
     const query = $('searchInput').value.trim().toLocaleLowerCase();
@@ -273,6 +273,13 @@
   }
   refreshSnapshot();
   setInterval(() => { updateFreshness(); if (state.data) hourlyRecommendations(); }, 60000);
-  setInterval(refreshSnapshot, 5 * 60000);
+  // Align checks to wall-clock five-minute boundaries, including :00 and :05.
+  function scheduleRefresh() {
+    setTimeout(async () => {
+      await refreshSnapshot();
+      scheduleRefresh();
+    }, 5 * 60000 - Date.now() % (5 * 60000));
+  }
+  scheduleRefresh();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshSnapshot(); });
 })();

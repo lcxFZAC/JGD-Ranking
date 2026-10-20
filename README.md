@@ -59,6 +59,6 @@ npm test
 
 使用免费的 pages.dev 域名，GitHub 保留源码和数据。构建命令 `node scripts/build.js`，输出目录 `dist`，Node 22。
 
-详细操作见 [部署流程](DEPLOY.md)，交接其他 AI 使用 [部署提示词](DEPLOY-AI-PROMPT.md)。GitHub Actions 每 3 小时更新数据并提交 main，Cloudflare Git 集成自动发布；每天北京时间 08:05 补查目录。实际运行可能延迟。每月约 240–248 次计划构建，适配免费版 500 次额度。
+详细操作见 [部署流程](DEPLOY.md)，交接其他 AI 使用 [部署提示词](DEPLOY-AI-PROMPT.md)。GitHub Actions 每小时整点计划抓取，05 分检查本小时是否已有成功快照，没有则重试；成功后提交 main，由 Cloudflare Git 集成自动发布。每天北京时间 08 点的任务在发布后补查目录，新增名单供下一次抓取使用。GitHub 调度与部署可能延迟，不保证整点立即上线。每小时发布约需每月 720–744 次构建，需要确认 Cloudflare 账户额度足够；05 分跳过成功快照时不产生额外部署。
 
 GitHub 工作流不再部署 GitHub Pages。Cloudflare 账号连接和首次建站需按文档完成，并验证数据提交能触发部署后，才能确认自动更新链路正常。
