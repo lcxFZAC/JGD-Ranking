@@ -172,3 +172,7 @@ body { background:radial-gradient(ellipse at 75% 0,rgba(255,224,68,.13),transpar
 .daily-footer { display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:16px;margin-top:20px; }
 .daily-cta { color:var(--accent);font-size:12px;font-weight:700; }
 @media(max-width:760px) { .daily-grid { grid-template-columns:1fr; } }
+
+#refreshFeedback { flex-basis:100%; max-width:560px; line-height:1.5; }
+#statusPill { font:inherit; cursor:pointer; }
+#statusPill:disabled { cursor:progress; opacity:.7; }

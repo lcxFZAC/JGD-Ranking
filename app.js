@@ -121,7 +121,7 @@
     if (!state.data) return;
     const ts = state.data.crawledAt;
     const stale = Date.now() - Date.parse(ts) > 3.5 * 3600000;
-    $('statusPill').textContent = `${stale ? '数据待更新' : '快照已更新'} · ${when(ts)} 北京时间`;
+    $('statusPill').textContent = `${stale ? '快照已超时，点击检查' : '快照已更新，点击检查'} · ${when(ts)} 北京时间`;
     $('statusPill').className = `status ${stale ? '' : 'ok'}`;
     $('statusPill').title = '每 3 小时计划采集，失败后 05 分重试；数据独立更新，无需重新部署网站。GitHub 调度和缓存可能延迟。';
   }
@@ -282,10 +282,18 @@
   async function refreshSnapshot() {
     if (location.protocol === 'file:' || refreshing) return;
     refreshing = true;
+    const before = state.data.crawledAt;
+    const feedback = $('refreshFeedback');
+    const report = text => { if (feedback) feedback.textContent = text; };
+    $('statusPill').disabled = true;
+    $('statusPill').setAttribute('aria-busy', 'true');
+    report('正在连接数据源、检查并下载最新快照…');
     try {
       const latest = await client.check();
       if (state.data !== latest) initialize({latest});
       updateFreshness();
+      const checked = new Date().toLocaleTimeString('zh-CN', {timeZone:'Asia/Shanghai',hour12:false});
+      report(latest.crawledAt !== before ? `更新成功 · ${checked} 检查完成` : `检查完成 ${checked} · 暂无新快照；后台每 3 小时计划采集，刷新网页不会启动采集`);
       if (state.trendsVisible) await activateTrends();
     } catch (error) {
       try {
@@ -293,8 +301,13 @@
         if (state.data !== latest) initialize({latest});
       } catch { /* Keep the overview and first 30 entries usable. */ }
       updateFreshness();
+      report('连接数据源失败，已保留现有数据；点击时间状态重试，或等待 5 分钟后自动重试');
       $('statusPill').title = `检查更新失败，保留上次快照：${error.message}`;
-    } finally { refreshing = false; }
+    } finally {
+      refreshing = false;
+      $('statusPill').disabled = false;
+      $('statusPill').removeAttribute('aria-busy');
+    }
   }
   initialize({latest:client.catalogue});
   if (location.protocol === 'file:') {
