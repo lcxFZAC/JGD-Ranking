@@ -1,7 +1,10 @@
 name: Watch Spotlight freshness
 on:
   schedule:
-    - cron: '47 * * * *'
+    - cron: '32,57 * * * *'
+  push:
+    branches: [main]
+    paths: ['.github/workflows/health.yml', 'scripts/recover.cjs']
   workflow_dispatch:
     inputs:
       test_notification:
@@ -11,6 +14,7 @@ on:
 permissions:
   contents: read
   issues: write
+  actions: write
 concurrency:
   group: spotlight-health
   cancel-in-progress: false
@@ -32,6 +36,7 @@ jobs:
               await github.rest.issues.update({...context.repo, issue_number:number, state:'closed'});
             }
             let problem = null;
+            let stale = false;
             try {
               const site = await fetch('https://jgd-ranking.pages.dev/', {signal:AbortSignal.timeout(30000), headers:{'Cache-Control':'no-cache'}});
               if (!site.ok) throw new Error(`Website HTTP ${site.status}`);
@@ -39,7 +44,17 @@ jobs:
               if (!response.ok) throw new Error(`HTTP ${response.status}`);
               const data = await response.json();
               const age = Date.now() - Date.parse(data.crawledAt);
+              stale = data.eventId === 28 && Number.isFinite(age) && age > 3.5*3600000;
               if (data.eventId !== 28 || !Number.isFinite(age) || age > 3.5*3600000 || age < -300000) throw new Error(`线上快照无效或超过 3.5 小时未更新：${data.crawledAt}`);
             } catch(error) { problem = `线上新鲜度检查失败：${error.message}`; }
+            if (stale) {
+              try {
+                const recover = require('./scripts/recover.cjs');
+                const result = await recover({github,context});
+                core.info(result);
+                problem += `；${result}`;
+                await core.summary.addRaw(result).write();
+              } catch (error) { problem += `；自动补触发失败：${error.message}`; }
+            }
             await alert({github,context,core}, '网站数据过期或不可访问', problem);
             if (problem) core.setFailed(problem);

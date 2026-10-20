@@ -123,7 +123,7 @@
     const stale = Date.now() - Date.parse(ts) > 3.5 * 3600000;
     $('statusPill').textContent = `${stale ? '快照已超时，点击检查' : '快照已更新，点击检查'} · ${when(ts)} 北京时间`;
     $('statusPill').className = `status ${stale ? '' : 'ok'}`;
-    $('statusPill').title = '每 3 小时计划采集，失败后 05 分重试；数据独立更新，无需重新部署网站。GitHub 调度和缓存可能延迟。';
+    $('statusPill').title = '每 3 小时采集一次，每小时 17、47 分检查补采，过期时健康检查自动补触发；数据独立更新，无需重新部署网站。GitHub 调度和缓存可能延迟。';
   }
   function filtered() {
     const query = $('searchInput').value.trim().toLocaleLowerCase();

@@ -84,3 +84,8 @@ npm run dev
 访问 http://127.0.0.1:4173 。无第三方运行依赖。
 
 官方文档：[Git 集成](https://developers.cloudflare.com/pages/get-started/git-integration/)、[免费额度](https://developers.cloudflare.com/pages/platform/limits/)。
+
+
+### 定时采集补偿机制
+
+GitHub 每小时 17、47 分尝试检查，同一 UTC 三小时窗口有成功快照则跳过采集。独立健康检查在每小时 32、57 分运行；数据超过 3.5 小时时，通过 workflow_dispatch 自动补触发采集。有采集排队或运行则不重复触发，补触发间隔至少 30 分钟。过期告警保留到确认数据恢复。GitHub 调度可能延迟或丢弃，无法保证准点，也无法在 GitHub 整体不可用时自救。

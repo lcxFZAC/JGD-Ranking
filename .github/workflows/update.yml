@@ -14,10 +14,8 @@ on:
         type: boolean
         default: false
   schedule:
-    - cron: '0 */3 * * *'
-    - cron: '5 */3 * * *'
-    # Off-peak recovery: the window gate skips this when already refreshed.
-    - cron: '17 * * * *'
+    # Off-peak checks; collect once per three-hour window.
+    - cron: '17,47 * * * *'
 
 permissions:
   contents: write
@@ -65,6 +63,7 @@ jobs:
           python -m unittest discover -s tests -v
           node --check app.js
           node --check data-client.js
+          node tests/test_recover.cjs
           node tests/test_alert.cjs
           node tests/test_refresh.cjs
           node tests/test_build.cjs
