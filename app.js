@@ -332,7 +332,7 @@
       } catch { /* Keep the overview and first 30 entries usable. */ }
       updateFreshness();
       report('暂时无法更新，请稍后重试');
-      $('statusPill').title = '暂时无法更新，点击重试';
+      $('statusPill').title = `暂时无法更新，点击重试：${error.message}`;
     } finally {
       refreshing = false;
       $('statusPill').disabled = false;

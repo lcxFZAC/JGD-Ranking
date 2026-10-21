@@ -57,6 +57,23 @@ const initial = {...latest,partial:true};
   const staleClient = new DataClient({storage:null,initial,fetcher:async url=>({ok:true,json:async()=>
     url.endsWith('version.json') ? version : url.includes('?v=') ? data : latest})});
   assert.equal((await staleClient.check()).crawledAt,version.version,'Stale speculative response retries versioned URL');
+  // Both branch URLs (including the hash query) can remain stuck on an old file.
+  const sha='e'.repeat(40), recoveryCalls=[];
+  const recovered = new DataClient({storage:null,initial,fetcher:async url=>{
+    recoveryCalls.push(url);
+    const body=url.includes('/commits?') ? [{sha}] : url.includes('version.json') ? version :
+      url.includes('history.json') ? {eventId:28,snapshots:[{ts:data.crawledAt}]} :
+      url.includes('/'+sha+'/') ? data : latest;
+    return {ok:true,json:async()=>body};
+  }});
+  assert.equal((await recovered.check()).crawledAt,version.version,'Pinned commit recovers stale branch catalogue');
+  await recovered.loadHistory();
+  assert.ok(recoveryCalls.some(url=>url.includes('/'+sha+'/data/history.json')),'History stays on the same immutable commit');
+  const mirror=new DataClient({storage:null,initial,fetcher:async url=>{
+    if(url.startsWith('https://raw.githubusercontent.com/')) throw Error('network unavailable');
+    return {ok:true,json:async()=>url.includes('version.json')?version:data};
+  }});
+  assert.equal((await mirror.check()).crawledAt,version.version,'CDN fallback works without Cloudflare requests');
   const source = fs.readFileSync('app.js','utf8');
   const schedulingCode = source.slice(source.indexOf('  function scheduleRefresh()'),source.indexOf("  document.addEventListener('visibilitychange'"));
   for (const [date,expected] of [['2026-10-20T04:59:32Z',28000],['2026-10-20T05:00:00Z',300000]]) {

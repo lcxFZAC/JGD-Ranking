@@ -23,9 +23,18 @@
       } catch { /* Disabled, corrupt, or full storage must not prevent rendering. */ }
     }
     async json(url) {
-      const response = await this.fetcher(url, {cache:'no-store', signal:AbortSignal.timeout(15000)});
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json();
+      const urls = [url];
+      const match = url.match(/^https:\/\/raw\.githubusercontent\.com\/lcxFZAC\/JGD-Ranking\/([^/]+)\/(.+)$/);
+      if (match) urls.push(`https://cdn.jsdelivr.net/gh/lcxFZAC/JGD-Ranking@${match[1]}/${match[2]}`);
+      let failure;
+      for (const source of urls) {
+        try {
+          const response = await this.fetcher(source, {cache:'no-store', signal:AbortSignal.timeout(15000)});
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return await response.json();
+        } catch (error) { failure = error; }
+      }
+      throw failure;
     }
     save(data) {
       if (!validCatalogue(data)) throw new Error('榜单数据无效');
@@ -35,7 +44,12 @@
     }
     async check() {
       if (this.pending) return this.pending;
-      this.pending = this.checkOnce().finally(() => { this.pending = null; });
+      this.pending = this.checkOnce().catch(async error => {
+        // Branch URLs can serve different commits even with no-store/query strings.
+        // Resolve a publication commit only on failure, then read immutable URLs.
+        if (this.base !== BASE) throw error;
+        try { return await this.recoverSnapshot(); } catch { throw error; }
+      }).finally(() => { this.pending = null; });
       return this.pending;
     }
     async checkOnce() {
@@ -56,6 +70,24 @@
         this.save(data);
       }
       this.manifest = manifest;
+      this.historyBase = this.base;
+      return this.catalogue;
+    }
+    async recoverSnapshot() {
+      const commits = await this.json('https://api.github.com/repos/lcxFZAC/JGD-Ranking/commits?path=data/version.json&per_page=1');
+      const sha = commits?.[0]?.sha;
+      if (!/^[a-f0-9]{40}$/.test(sha)) throw new Error('无法确认数据提交版本');
+      const base = BASE.replace('/main/', `/${sha}/`);
+      const [manifest, data] = await Promise.all([
+        this.json(base + 'version.json'), this.json(base + 'catalogue.json')
+      ]);
+      if (manifest.eventId !== 28 || !Number.isFinite(Date.parse(manifest.version)) ||
+          !/^[a-f0-9]{64}$/.test(manifest.catalogueHash) || !/^[a-f0-9]{64}$/.test(manifest.historyHash) ||
+          data.crawledAt !== manifest.version || !validCatalogue(data)) throw new Error('提交中的数据版本不一致');
+      if (Date.parse(data.crawledAt) < Date.parse(this.catalogue.crawledAt)) return this.catalogue;
+      this.save(data);
+      this.manifest = manifest;
+      this.historyBase = base;
       return this.catalogue;
     }
     async localFallback() {
@@ -74,7 +106,7 @@
       const version = manifest?.version || this.catalogue.crawledAt;
       const key = manifest?.historyHash || version;
       if (this.history && this.historyHash === key) return this.history;
-      const data = await this.json(manifest ? this.base + 'history.json?v=' + manifest.historyHash : './data/history.json');
+      const data = await this.json(manifest ? (this.historyBase || this.base) + 'history.json?v=' + manifest.historyHash : './data/history.json');
       if (data.eventId !== 28 || !Array.isArray(data.snapshots) || !data.snapshots.some(s => s.ts === version)) throw new Error('历史数据尚未同步，稍后重试');
       this.history = data;
       this.historyHash = key;
