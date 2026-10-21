@@ -27,7 +27,7 @@
 
 ## 三、自动更新
 
-GitHub Actions 每 3 小时整点抓取：北京时间 00、03、06、09、12、15、18、21 点；对应 05 分在本周期没有成功快照时重试。GitHub 调度可能延迟。目录补查在数据发布后分批继续，不阻塞已发布的数据。
+GitHub Actions 每小时整点抓取；对应 05 分在本周期没有成功快照时重试。GitHub 调度可能延迟。目录补查在数据发布后分批继续，不阻塞已发布的数据。
 
 数据和目录提交使用 `[CF-Pages-Skip]` 前缀，Cloudflare 跳过部署。页面从 `https://raw.githubusercontent.com/lcxFZAC/JGD-Ranking/main/data/` 先读取 version.json，再按需读取 catalogue.json 与 history.json；不再将站点 `/data/latest.json` 当作实时数据源。站点内置数据是代码部署时的兜底快照，保持旧时间是正常现象。数据源无法读取时保留已有快照，并在状态提示中说明检查失败。
 
@@ -65,7 +65,7 @@ GitHub Actions 每 3 小时整点抓取：北京时间 00、03、06、09、12、
 - 抓取前写入检查与构建检查均设 20 MiB 数据包上限，超限停止发布并告警，保留线上旧版本；不会静默删掉 90 天以内的数据。
 - 每日目录补查独立处理失败，30 分钟超时；失败继续按已保存名单抓取指标，并发出单独告警。
 - 更新任务失败时，在本仓库创建并分配给仓库主人的 GitHub Issue，同时 @ 提及。重复失败更新同一个 Issue，成功恢复后评论并关闭。目录告警仅在下一次目录补查成功时关闭。
-- 独立工作流 Watch Spotlight freshness 每小时第 32、57 分钟检查线上 JSON；超过 3.5 小时、HTTP 失败或无效快照会告警。GitHub 调度延迟也会影响检测时效；如果 GitHub Actions 整体停止，该平台内的监控也无法运行，不能保证永不中断。
+- 独立工作流 Watch Spotlight freshness 每小时第 32、57 分钟检查线上 JSON；超过 1.5 小时、HTTP 失败或无效快照会告警。GitHub 调度延迟也会影响检测时效；如果 GitHub Actions 整体停止，该平台内的监控也无法运行，不能保证永不中断。
 - 通知接收：GitHub Settings → Notifications 启用参与/提及通知的 Email 或 Web；确认邮箱已验证。仓库 Issue 的分配/提及会走你的个人设置，代码无法保证邮件一定送达。Actions 失败邮件也可在个人通知设置开启。
 - 可手动运行 Watch Spotlight freshness 并勾选 test_notification，发送明确标记的测试告警后自动关闭，验证 GitHub 通知通道。
 - 诊断入口：仓库 Issues 看当前告警，Actions 看失败日志；不要把公开告警中贴入 Cookie、Token 等敏感信息。
@@ -88,9 +88,9 @@ npm run dev
 
 ### 定时采集补偿机制
 
-GitHub 每小时 17、47 分尝试检查，同一北京时间三小时窗口有成功快照则跳过采集。独立健康检查在每小时 32、57 分运行；数据超过 3.5 小时时，通过 workflow_dispatch 自动补触发采集。有采集排队或运行则不重复触发，补触发间隔至少 30 分钟。过期告警保留到确认数据恢复。GitHub 调度可能延迟或丢弃，无法保证准点，也无法在 GitHub 整体不可用时自救。
+GitHub 每小时 17、47 分尝试检查，同一北京时间一小时窗口有成功快照则跳过采集。独立健康检查在每小时 32、57 分运行；数据超过 1.5 小时时，通过 workflow_dispatch 自动补触发采集。有采集排队或运行则不重复触发，补触发间隔至少 30 分钟。过期告警保留到确认数据恢复。GitHub 调度可能延迟或丢弃，无法保证准点，也无法在 GitHub 整体不可用时自救。
 
-Cloudflare Worker `jgd-ranking-scheduler` 在北京时间 00:30、03:30、06:30、09:30、12:30、15:30、18:30、21:30 检查本轮快照。只有本轮未更新、且没有进行中的采集时才触发 GitHub Actions；队列开始执行后还会再次检查，避免重复抓取。每天 8 次调度，不使用 KV、数据库或网站部署；公网与预览 URL 均关闭。两套触发器仍依赖 GitHub 执行及 TapTap 数据源，不能保证平台故障时也能更新。
+Cloudflare Worker `jgd-ranking-scheduler` 在北京时间每小时 30 分检查本轮快照。只有本轮未更新、且没有进行中的采集时才触发 GitHub Actions；队列开始执行后还会再次检查，避免重复抓取。每天 24 次调度，不使用 KV、数据库或网站部署；公网与预览 URL 均关闭。两套触发器仍依赖 GitHub 执行及 TapTap 数据源，不能保证平台故障时也能更新。
 
 Worker 的加密 Secret `GITHUB_ACTIONS_TOKEN` 使用仅授权 JGD-Ranking 的 Fine-grained Token，权限仅 Actions: read/write 和必需的 Metadata: read。Token 到期前需要在 Cloudflare 中替换；不要保存到仓库或聊天。Cloudflare Observability 可查看 `already-current`、`already-running`、`recent-dispatch` 或 `dispatched` 结果及异常。
 

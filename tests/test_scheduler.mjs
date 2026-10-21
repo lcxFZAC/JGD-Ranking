@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {tick,windowStart} from '../scheduler/worker.mjs';
 const now=Date.parse('2026-10-21T07:30:00Z');
+assert.equal(windowStart(Date.parse('2026-10-21T08:30:00Z')),Date.parse('2026-10-21T08:00:00Z'));
 assert.equal(windowStart(now),Date.parse('2026-10-21T07:00:00Z'));
 assert.equal(windowStart(Date.parse('2026-10-20T16:30:00Z')),Date.parse('2026-10-20T16:00:00Z'));
 async function check(startedAt,version,runs,expected){
@@ -13,6 +14,7 @@ async function check(startedAt,version,runs,expected){
  if(posts.length) assert.equal(JSON.parse(posts[0].options.body).inputs.only_if_due,true);
 }
 await check('2026-10-21T07:00:00Z','2026-10-21T07:03:00Z',[],'already-current');
+await check('2026-10-21T06:00:00Z','2026-10-21T06:03:00Z',[],'dispatched');
 await check('2026-10-21T04:00:00Z','2026-10-21T04:03:00Z',[],'dispatched');
 await check('2026-10-21T06:59:00Z','2026-10-21T07:03:00Z',[],'dispatched');
 await check(null,'2026-10-21T04:03:00Z',[{event:'schedule',status:'in_progress'}],'already-running');

@@ -13,7 +13,7 @@ class RefreshDueTest(unittest.TestCase):
                     'startedAt': '2026-10-20T04:00:00+00:00',
                     'crawledAt': '2026-10-20T04:02:00+00:00'}
         self.assertFalse(refresh_due(snapshot, now))
-        self.assertFalse(refresh_due(snapshot, now + dt.timedelta(hours=1)))
+        self.assertTrue(refresh_due(snapshot, now + dt.timedelta(hours=1)))
         self.assertTrue(refresh_due(snapshot, now + dt.timedelta(hours=3)))
         self.assertTrue(refresh_due({}, now))
         self.assertTrue(refresh_due(dict(snapshot, games=[]), now))
@@ -25,5 +25,5 @@ class RefreshDueTest(unittest.TestCase):
         snapshot={'eventId':28,'games':[{'id':'1'}],
                   'startedAt':'2026-10-20T16:00:00+00:00',
                   'crawledAt':'2026-10-20T16:03:00+00:00'}
-        self.assertFalse(refresh_due(snapshot,dt.datetime(2026,10,20,18,5,tzinfo=dt.timezone.utc)))
-        self.assertTrue(refresh_due(snapshot,dt.datetime(2026,10,20,19,0,tzinfo=dt.timezone.utc)))
+        self.assertFalse(refresh_due(snapshot,dt.datetime(2026,10,20,16,5,tzinfo=dt.timezone.utc)))
+        self.assertTrue(refresh_due(snapshot,dt.datetime(2026,10,20,17,0,tzinfo=dt.timezone.utc)))

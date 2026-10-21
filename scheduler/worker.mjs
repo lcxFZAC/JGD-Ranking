@@ -1,6 +1,6 @@
 const REPO = 'lcxFZAC/JGD-Ranking';
 export function windowStart(now) {
-  const offset=8*3600000, period=3*3600000;
+  const offset=8*3600000, period=3600000;
   return Math.floor((now+offset)/period)*period-offset;
 }
 export async function tick(env, now=Date.now(), request=fetch) {
