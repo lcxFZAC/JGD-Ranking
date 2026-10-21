@@ -127,11 +127,12 @@
     const platforms = [['双端', s.platforms.dual, 'var(--accent)'], ['移动', s.platforms.mobile, 'var(--pc)'], ['PC', s.platforms.pc, '#9b8af2']];
     if (s.platforms.unknown) platforms.push(['未标明', s.platforms.unknown, 'var(--muted)']);
     bar('platformBar', 'platformLegend', platforms, s.total);
+    const heat50 = data.partial ? s.atLeast50 : data.games.filter(g => g.heat >= 50).length;
     $('heatKpis').replaceChildren(
       kpi('总热度', short(s.totalHeat), 'mobile'), kpi('热度中位数', number(s.medianHeat)),
-      kpi('热度破万', number(s.overTenThousand)), kpi('零热度作品', number(s.zeroHeat)), kpi('总关注数', short(s.totalFollowers), 'pc')
+      kpi('热度 ≥ 50 作品', heat50 == null ? '—' : number(heat50), 'heat-qualified'), kpi('热度破万', number(s.overTenThousand)), kpi('零热度作品', number(s.zeroHeat)), kpi('总关注数', short(s.totalFollowers), 'pc')
     );
-    [...$('heatKpis').children].forEach((card, i) => card.title = number([s.totalHeat, s.medianHeat, s.overTenThousand, s.zeroHeat, s.totalFollowers][i]));
+    [...$('heatKpis').children].forEach((card, i) => card.title = number([s.totalHeat, s.medianHeat, heat50, s.overTenThousand, s.zeroHeat, s.totalFollowers][i]));
     if (data.coverage?.notice) {
       $('dataNotice').hidden = false;
       $('dataNotice').textContent = data.coverage.notice;
@@ -170,9 +171,9 @@
     $('resultCount').textContent = state.data.partial ? `共 ${number(state.data.summary.total)} 款 · 先显示热度前 30 款，完整榜单加载中…` : `共 ${number(state.data.games.length)} 款 · 当前筛选 ${number(games.length)} 款`;
     const body = $('totalBody'); body.replaceChildren();
     for (const game of games.slice((state.page - 1) * state.size, state.page * state.size)) {
-      const row = node('tr');
+      const row = node('tr', game.heat >= 50 ? 'heat-qualified-row' : '');
       row.append(node('td', 'rank-index', String(game.rank)));
-      const title = node('td'); title.append(gameLink(game, true)); row.append(title);
+      const title = node('td'); title.append(gameLink(game, true)); if (game.heat >= 50) title.append(node('span', 'heat-threshold-badge', '热度 ≥ 50')); row.append(title);
       const method = node('td'); method.append(node('span', `method-badge ${game.method}`, game.method === 'maker' ? 'TapTap 制造' : '其他方式')); row.append(method);
       row.append(node('td', 'platform-label', labels[game.platform]), node('td', 'num', number(game.heat)), node('td', 'num', number(game.followers)));
       const action = node('td'), button = node('button', 'btn-sm secondary', '看走势'); button.type = 'button';

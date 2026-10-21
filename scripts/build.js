@@ -18,7 +18,7 @@ const manifest = {schemaVersion: 1, eventId: 28, version: latest.crawledAt, star
   catalogueHash: hash(encoded), historyHash: hash(JSON.stringify(history))};
 fs.writeFileSync(path.join(root, 'data/catalogue.json'), encoded);
 fs.writeFileSync(path.join(root, 'data/version.json'), JSON.stringify(manifest));
-const bootstrap = {...catalogue, partial: true, games: catalogue.games.slice(0, 30)};
+const bootstrap = {...catalogue, partial: true, summary: {...catalogue.summary, atLeast50: catalogue.games.filter(g => g.heat >= 50).length}, games: catalogue.games.slice(0, 30)};
 fs.writeFileSync(path.join(root, 'data/bootstrap.js'),
   `window.SPOTLIGHT_DATA=${JSON.stringify({latest: bootstrap}).replace(/</g, '\\u003c')};\n`);
 const dist = path.join(root, 'dist');

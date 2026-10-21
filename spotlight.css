@@ -216,3 +216,15 @@ body { background:radial-gradient(ellipse at 75% 0,rgba(255,224,68,.13),transpar
 [data-theme="light"] .random-actions { border-color:#25301012; }
 [data-theme="light"] .random-actions #closeRandomGame { color:#626b55; border-color:#25301020; }
 @media(max-width:480px) { .random-dialog { padding:24px; } .random-game-card .game-name { font-size:23px; } }
+/* Threshold statistics and qualifying works share a restrained green treatment. */
+.heat-grid { grid-template-columns:repeat(6,minmax(0,1fr)); }
+.heat-qualified .value { color:#95c9ae; }
+#totalBody .heat-qualified-row { background:rgba(41,133,101,.10); }
+#totalBody .heat-qualified-row:hover { background:rgba(41,133,101,.18); }
+#totalBody .heat-qualified-row .game-name { color:#a6dfbb; }
+.heat-threshold-badge { display:inline-block; margin:5px 0 0 46px; padding:1px 6px; border-radius:4px; font-size:10px; color:#a6dfbb; background:rgba(41,133,101,.18); }
+[data-theme="light"] .heat-qualified .value,
+[data-theme="light"] #totalBody .heat-qualified-row .game-name,
+[data-theme="light"] .heat-threshold-badge { color:#146348; }
+@media (max-width:1000px) { .heat-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media (max-width:600px) { .heat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .heat-grid .kpi,.heat-grid .kpi:nth-last-child(-n+2) { grid-column:auto; } }
