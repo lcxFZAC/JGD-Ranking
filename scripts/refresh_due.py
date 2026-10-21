@@ -24,7 +24,11 @@ if __name__ == '__main__':
     scheduled = os.environ.get('EVENT_NAME') == 'schedule'
     now = dt.datetime.now(dt.timezone.utc)
     refresh = refresh_due(snapshot, now) if scheduled else os.environ.get('REFRESH_DATA') == 'true' or os.environ.get('FULL_DISCOVERY') == 'true'
-    discovery = os.environ.get('FULL_DISCOVERY') == 'true' or (scheduled and now.hour < 3 and refresh)
+    try:
+        pending = bool(json.loads(Path('data/discovery-state.json').read_text(encoding='utf-8')).get('pending'))
+    except (OSError, ValueError):
+        pending = False
+    discovery = os.environ.get('FULL_DISCOVERY') == 'true' or (scheduled and (pending or (now.hour < 3 and refresh)))
     with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
         output.write(f'refresh={str(refresh).lower()}\ndiscovery={str(discovery).lower()}\n')
     print('Refresh required' if refresh else 'This three-hour window already has a snapshot; skip redundant refresh')
