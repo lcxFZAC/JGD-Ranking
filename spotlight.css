@@ -187,16 +187,32 @@ body { background:radial-gradient(ellipse at 75% 0,rgba(255,224,68,.13),transpar
   .top-actions > .btn { margin-left:0; }
 }
 
-.random-dialog { width:min(460px,calc(100% - 32px)); max-height:calc(100dvh - 32px); overflow:auto; padding:28px; }
-.random-dialog h2 { margin:6px 0 10px; font-size:26px; letter-spacing:-.6px; }
-.random-game-card { margin:24px 0; padding:24px; border:1px solid var(--line); border-radius:18px; background:linear-gradient(145deg,rgba(62,207,142,.12),transparent 65%); }
-.random-game-card .game-link { align-items:center; gap:16px; }
-.random-game-card .game-icon { width:80px; height:80px; border-radius:20px; flex-shrink:0; }
-.random-game-card .game-name { white-space:normal; overflow-wrap:anywhere; font-size:21px; line-height:1.4; }
-.random-game-card .developer-name { white-space:normal; margin-top:6px; }
-.random-tags { display:flex; gap:8px; flex-wrap:wrap; margin:24px 0 18px; }
-.random-stats { display:flex; gap:24px; color:var(--muted); font-size:13px; margin-bottom:20px; }
-.random-dialog .random-play { display:block; text-align:center; }
-.random-actions { display:flex; gap:12px; }
-.random-actions button { flex:1; min-height:44px; }
-@media(max-width:480px) { .random-dialog { padding:20px; } .random-game-card { padding:18px; } .random-game-card .game-icon { width:64px; height:64px; } }
+.random-dialog { width:min(440px,calc(100% - 32px)); max-height:calc(100dvh - 32px); overflow:auto; padding:28px 32px 24px; border:1px solid rgba(255,255,255,.12); border-radius:26px; background:radial-gradient(ellipse at 50% 0,rgba(255,255,255,.045),transparent 62%),#1b1d19; box-shadow:0 32px 100px #0008,inset 0 1px 0 #ffffff0c; }
+.random-dialog::backdrop { background:rgba(8,10,7,.64); backdrop-filter:blur(9px); }
+.random-dialog h2 { margin:0; color:#a6aaa0; font-size:12px; font-weight:500; letter-spacing:.14em; }
+.random-game-card { margin:30px 0 26px; text-align:center; }
+.random-game-card .game-link { flex-direction:column; align-items:center; gap:22px; padding:0; border:0; text-decoration:none; }
+.random-game-card .game-icon { width:104px; height:104px; border-radius:25px; flex-shrink:0; box-shadow:0 10px 30px #0004,0 0 0 1px #ffffff12; }
+.random-game-card .game-name { display:block; white-space:normal; overflow-wrap:anywhere; font-size:26px; font-weight:650; letter-spacing:-.6px; line-height:1.35; color:#f2f3ed; }
+.random-game-card .developer-name { display:block; white-space:normal; overflow-wrap:anywhere; margin-top:9px; color:#989d91; font-size:12px; line-height:1.6; }
+.random-tags { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin:20px 0 12px; color:#bdc1b6; font-size:12px; }
+.random-tags span+span::before { content:'·'; margin-right:10px; color:#62695d; }
+.random-stats { display:flex; justify-content:center; gap:18px; color:#858d7c; font-size:11px; font-variant-numeric:tabular-nums; }
+.random-play { display:inline-block; margin-top:25px; padding:8px 4px; color:#dce0d3; font-size:12px; text-decoration:none; border-bottom:1px solid #ffffff24; transition:color .15s,border-color .15s; }
+.random-play:hover { color:#ffe044; border-color:#ffe04488; }
+.random-actions { display:grid; grid-template-columns:1fr 1.65fr; gap:12px; padding-top:20px; border-top:1px solid #ffffff0d; }
+.random-actions button { min-height:46px; border-radius:12px; font-size:13px; font-weight:500; transition:background .15s,transform .15s; }
+.random-actions #closeRandomGame { background:transparent; border:1px solid #ffffff14; color:#b0b6a7; }
+.random-actions #closeRandomGame:hover { background:#ffffff08; }
+.random-actions #nextRandomGame { background:#e6eacb; border:1px solid #e6eacb; color:#252b17; box-shadow:0 2px 8px #0002; }
+.random-actions #nextRandomGame:hover { background:#f1f3dc; }
+.random-actions button:active { transform:translateY(1px); }
+.random-dialog :focus-visible { outline:2px solid #dce3a7; outline-offset:4px; }
+[data-theme="light"] .random-dialog { background:radial-gradient(ellipse at 50% 0,#fff,transparent 70%),#f6f7f1; border-color:#dfe2d5; box-shadow:0 32px 100px #17210d33; }
+[data-theme="light"] .random-dialog h2,[data-theme="light"] .random-game-card .developer-name { color:#72796a; }
+[data-theme="light"] .random-game-card .game-name { color:#242b1f; }
+[data-theme="light"] .random-tags,[data-theme="light"] .random-play { color:#535d46; }
+[data-theme="light"] .random-play { border-color:#535d4640; }
+[data-theme="light"] .random-actions { border-color:#25301012; }
+[data-theme="light"] .random-actions #closeRandomGame { color:#626b55; border-color:#25301020; }
+@media(max-width:480px) { .random-dialog { padding:24px; } .random-game-card .game-name { font-size:23px; } }

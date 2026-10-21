@@ -40,12 +40,12 @@
     card.dataset.gameId = game.id;
     const heading = gameLink(game, true);
     const icon = heading.querySelector('img');
-    icon.loading = 'eager'; icon.width = 80; icon.height = 80;
+    icon.loading = 'eager'; icon.width = 104; icon.height = 104;
     const tags = node('div', 'random-tags');
-    tags.append(node('span', 'chip', labels[game.platform] || '未标明平台'), node('span', 'chip', game.method === 'maker' ? 'TapTap 制造' : '其他方式开发'));
+    tags.append(node('span', '', labels[game.platform] || '未标明平台'), node('span', '', game.method === 'maker' ? 'TapTap 制造' : '其他方式开发'));
     const stats = node('div', 'random-stats');
     stats.append(node('div', '', `热度 ${number(game.heat)}`), node('div', '', `关注 ${number(game.followers)}`));
-    const play = node('a', 'btn random-play', '去 TapTap 玩 ↗');
+    const play = node('a', 'random-play', '在 TapTap 查看 ↗');
     play.href = `https://www.taptap.cn/app/${encodeURIComponent(game.id)}`;
     play.target = '_blank'; play.rel = 'noopener noreferrer';
     card.replaceChildren(heading, tags, stats, play);
