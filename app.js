@@ -173,7 +173,7 @@
     for (const game of games.slice((state.page - 1) * state.size, state.page * state.size)) {
       const row = node('tr', game.heat >= 50 ? 'heat-qualified-row' : '');
       row.append(node('td', 'rank-index', String(game.rank)));
-      const title = node('td'); title.append(gameLink(game, true)); if (game.heat >= 50) title.append(node('span', 'heat-threshold-badge', '热度 ≥ 50')); row.append(title);
+      const title = node('td'); title.append(gameLink(game, true)); row.append(title);
       const method = node('td'); method.append(node('span', `method-badge ${game.method}`, game.method === 'maker' ? 'TapTap 制造' : '其他方式')); row.append(method);
       row.append(node('td', 'platform-label', labels[game.platform]), node('td', 'num', number(game.heat)), node('td', 'num', number(game.followers)));
       const action = node('td'), button = node('button', 'btn-sm secondary', '看走势'); button.type = 'button';
