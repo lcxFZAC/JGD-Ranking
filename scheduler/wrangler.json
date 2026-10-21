@@ -1,7 +1,8 @@
 {
  "name":"jgd-ranking-scheduler",
  "main":"worker.mjs",
- "compatibility_date":"2026-10-01",
+ "compatibility_date":"2026-10-21",
+ "observability":{"enabled":true},
  "workers_dev":false,
  "preview_urls":false,
  "triggers":{"crons":["30 1,4,7,10,13,16,19,22 * * *"]}

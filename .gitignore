@@ -3,6 +3,8 @@
 __pycache__/
 dist/
 node_modules/
+.wrangler/
+.dev.vars*
 .DS_Store
 data/dashboard.js
 data/bootstrap.js
