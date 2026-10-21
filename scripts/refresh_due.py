@@ -9,7 +9,8 @@ def refresh_due(snapshot, now):
     try:
         started = dt.datetime.fromisoformat(snapshot['startedAt'])
         ended = dt.datetime.fromisoformat(snapshot['crawledAt'])
-        hour = now.replace(hour=(now.hour // 3) * 3, minute=0, second=0, microsecond=0)
+        local = now.astimezone(dt.timezone(dt.timedelta(hours=8)))
+        hour = local.replace(hour=(local.hour // 3) * 3, minute=0, second=0, microsecond=0)
         return not (snapshot.get('eventId') == 28 and snapshot.get('games')
                     and hour <= started <= ended <= now)
     except (KeyError, TypeError, ValueError):
