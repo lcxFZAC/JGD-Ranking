@@ -29,6 +29,36 @@
     link.append(icon, text);
     return link;
   }
+  let lastRandomId = null;
+  function randomGame() {
+    if (!state.data || state.data.partial || !state.data.games.length) return;
+    const games = state.data.games;
+    const choices = games.length > 1 ? games.filter(game => game.id !== lastRandomId) : games;
+    const game = choices[Math.floor(Math.random() * choices.length)];
+    lastRandomId = game.id;
+    const card = $('randomGameCard');
+    card.dataset.gameId = game.id;
+    const heading = gameLink(game, true);
+    const icon = heading.querySelector('img');
+    icon.loading = 'eager'; icon.width = 80; icon.height = 80;
+    const tags = node('div', 'random-tags');
+    tags.append(node('span', 'chip', labels[game.platform] || '未标明平台'), node('span', 'chip', game.method === 'maker' ? 'TapTap 制造' : '其他方式开发'));
+    const stats = node('div', 'random-stats');
+    stats.append(node('div', '', `热度 ${number(game.heat)}`), node('div', '', `关注 ${number(game.followers)}`));
+    const play = node('a', 'btn random-play', '去 TapTap 玩 ↗');
+    play.href = `https://www.taptap.cn/app/${encodeURIComponent(game.id)}`;
+    play.target = '_blank'; play.rel = 'noopener noreferrer';
+    card.replaceChildren(heading, tags, stats, play);
+    $('nextRandomGame').disabled = games.length < 2;
+  }
+  $('randomGameButton').addEventListener('click', () => { randomGame(); $('randomGameDialog').showModal(); });
+  $('nextRandomGame').addEventListener('click', randomGame);
+  $('closeRandomGame').addEventListener('click', () => $('randomGameDialog').close());
+  $('randomGameDialog').addEventListener('click', event => {
+    if (event.target !== event.currentTarget) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) event.currentTarget.close();
+  });
   function hourlyRecommendations() {
     if (!$('dailyDate') || !$('dailyGames')) return;
     const hour = new Date(Date.now() + 8 * 3600000).toISOString().slice(0,13);
@@ -245,7 +275,7 @@
     if ($('dailyDate')) delete $('dailyDate').dataset.hour;
     if (!state.data.partial) hourlyRecommendations();
     else $('dailyDate').textContent = '完整榜单加载后显示推荐';
-    for (const id of ['searchInput','methodSelect','platformSelect','sortSelect','exportButton']) $(id).disabled = !!state.data.partial;
+    for (const id of ['searchInput','methodSelect','platformSelect','sortSelect','exportButton','randomGameButton']) $(id).disabled = !!state.data.partial;
     if (state.trendsVisible) populateTrends();
     if (!document.documentElement.dataset.overviewReadyMs) document.documentElement.dataset.overviewReadyMs = String(Math.round(performance.now()));
   }

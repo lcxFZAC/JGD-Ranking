@@ -186,3 +186,17 @@ body { background:radial-gradient(ellipse at 75% 0,rgba(255,224,68,.13),transpar
   #refreshFeedback { order:4; flex-basis:100%; }
   .top-actions > .btn { margin-left:0; }
 }
+
+.random-dialog { width:min(460px,calc(100% - 32px)); max-height:calc(100dvh - 32px); overflow:auto; padding:28px; }
+.random-dialog h2 { margin:6px 0 10px; font-size:26px; letter-spacing:-.6px; }
+.random-game-card { margin:24px 0; padding:24px; border:1px solid var(--line); border-radius:18px; background:linear-gradient(145deg,rgba(62,207,142,.12),transparent 65%); }
+.random-game-card .game-link { align-items:center; gap:16px; }
+.random-game-card .game-icon { width:80px; height:80px; border-radius:20px; flex-shrink:0; }
+.random-game-card .game-name { white-space:normal; overflow-wrap:anywhere; font-size:21px; line-height:1.4; }
+.random-game-card .developer-name { white-space:normal; margin-top:6px; }
+.random-tags { display:flex; gap:8px; flex-wrap:wrap; margin:24px 0 18px; }
+.random-stats { display:flex; gap:24px; color:var(--muted); font-size:13px; margin-bottom:20px; }
+.random-dialog .random-play { display:block; text-align:center; }
+.random-actions { display:flex; gap:12px; }
+.random-actions button { flex:1; min-height:44px; }
+@media(max-width:480px) { .random-dialog { padding:20px; } .random-game-card { padding:18px; } .random-game-card .game-icon { width:64px; height:64px; } }
