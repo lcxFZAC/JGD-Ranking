@@ -14,7 +14,7 @@ const fields = ['id','name','developer','icon','method','platform','heat','follo
 const catalogue = {...latest, games: latest.games.map(game => Object.fromEntries(fields.map(key => [key, game[key]])))};
 const encoded = JSON.stringify(catalogue);
 const hash = value => require('node:crypto').createHash('sha256').update(value).digest('hex');
-const manifest = {schemaVersion: 1, eventId: 28, version: latest.crawledAt,
+const manifest = {schemaVersion: 1, eventId: 28, version: latest.crawledAt, startedAt: latest.startedAt,
   catalogueHash: hash(encoded), historyHash: hash(JSON.stringify(history))};
 fs.writeFileSync(path.join(root, 'data/catalogue.json'), encoded);
 fs.writeFileSync(path.join(root, 'data/version.json'), JSON.stringify(manifest));

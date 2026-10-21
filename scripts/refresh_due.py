@@ -24,7 +24,7 @@ if __name__ == '__main__':
         snapshot = {}
     scheduled = os.environ.get('EVENT_NAME') == 'schedule'
     now = dt.datetime.now(dt.timezone.utc)
-    refresh = refresh_due(snapshot, now) if scheduled else os.environ.get('REFRESH_DATA') == 'true' or os.environ.get('FULL_DISCOVERY') == 'true'
+    refresh = refresh_due(snapshot, now) if (scheduled or os.environ.get('ONLY_IF_DUE') == 'true') else os.environ.get('REFRESH_DATA') == 'true' or os.environ.get('FULL_DISCOVERY') == 'true'
     try:
         pending = bool(json.loads(Path('data/discovery-state.json').read_text(encoding='utf-8')).get('pending'))
     except (OSError, ValueError):

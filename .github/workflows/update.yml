@@ -9,6 +9,10 @@ on:
         description: '抓取最新数据并提交 GitHub；关闭时仅校验'
         type: boolean
         default: false
+      only_if_due:
+        description: Only refresh a missing Beijing three-hour window
+        type: boolean
+        default: false
       full_discovery:
         description: '重新核对公开目录（首次或补全名单时使用，耗时较长）'
         type: boolean
@@ -55,6 +59,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           SCHEDULE: ${{ github.event.schedule }}
           REFRESH_DATA: ${{ inputs.refresh_data }}
+          ONLY_IF_DUE: ${{ inputs.only_if_due }}
           FULL_DISCOVERY: ${{ inputs.full_discovery }}
         run: python scripts/refresh_due.py
       - name: Fetch current statistics
@@ -66,6 +71,7 @@ jobs:
           python -m unittest discover -s tests -v
           node --check app.js
           node --check data-client.js
+          node tests/test_scheduler.mjs
           node tests/test_recover.cjs
           node tests/test_alert.cjs
           node tests/test_refresh.cjs
