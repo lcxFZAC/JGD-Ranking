@@ -8,7 +8,7 @@ from crawl import normalize, summarize, collect_ids
 
 
 def raw(gid=1, heat=0, platforms=None, maker=False):
-    return {'id':gid,'title':'示例','stat':{'hits_total':heat,'fans_count':2},
+    return {'id':gid,'title':'示例','stat':{'hits_total':heat,'pc_download_count':0,'fans_count':2},
             'tags':[{'value':'TapTap制造'}] if maker else [],
             'platform_info':{'supported_platforms':[{'key':p} for p in (platforms or [])]}}
 
@@ -31,6 +31,20 @@ class StatisticsTest(unittest.TestCase):
 
     def test_missing_stats_are_not_zero(self):
         game=raw();del game['stat']['hits_total']
+        with self.assertRaises(ValueError):normalize(game)
+
+    def test_pc_heat_matches_detail_combined_metric(self):
+        game=raw(984642,0,platforms=['pc'])
+        game['stat']['pc_download_count']=19
+        self.assertEqual(normalize(game)['heat'],19)
+        game=raw(972285,14333,platforms=['pc','android'])
+        game['stat']['pc_download_count']=962
+        self.assertEqual(normalize(game)['heat'],15295)
+        self.assertEqual(normalize(raw(984730))['heat'],0)
+        for value in [None,False,-1,'19']:
+            game['stat']['pc_download_count']=value
+            with self.assertRaises(ValueError):normalize(game)
+        del game['stat']['pc_download_count']
         with self.assertRaises(ValueError):normalize(game)
 
     def test_median_and_ten_thousand_boundary(self):

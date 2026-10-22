@@ -27,7 +27,7 @@ def atomic_json(path, data):
 def normalize(game):
     stat = game.get('stat', {})
     # Missing metrics are not zero. Abort the snapshot instead of hiding a schema change.
-    for key in ['hits_total', 'fans_count']:
+    for key in ['hits_total', 'pc_download_count', 'fans_count']:
         value = stat.get(key)
         if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
             raise ValueError(f"{game.get('id')}: missing or invalid stat.{key}")
@@ -43,7 +43,10 @@ def normalize(game):
         'cover': game.get('banner', {}).get('medium_url', ''),
         'method': 'maker' if 'TapTap制造' in tags else 'other',
         'platform': platform, 'platforms': platforms, 'tags': tags,
-        'heat': stat['hits_total'], 'followers': stat['fans_count'],
+        # mini-multi-get splits PC downloads out; detail.stat.hits_total combines them.
+        'heat': stat['hits_total'] + stat['pc_download_count'],
+        'heatComponents': {'appHits': stat['hits_total'], 'pcDownloads': stat['pc_download_count']},
+        'followers': stat['fans_count'],
         'reviewCount': stat.get('review_count'), 'score': stat.get('rating', {}).get('score'),
         'url': f"https://www.taptap.cn/app/{game['id']}",
     }
@@ -130,7 +133,7 @@ def main():
     previous = json.loads(previous_path.read_text(encoding='utf-8')) if previous_path.exists() else {}
     check_snapshot(games, previous, len(ids))
     latest = {
-        'schemaVersion': 1, 'eventId': EVENT_ID, 'eventName': '2026 TapTap 聚光灯 · 21天游戏创作挑战',
+        'schemaVersion': 1, 'heatMetricVersion': 2, 'eventId': EVENT_ID, 'eventName': '2026 TapTap 聚光灯 · 21天游戏创作挑战',
         'theme': '涌现', 'sourceUrl': event['url'], 'startedAt': started, 'crawledAt': ended,
         'summary': summarize(games), 'games': games,
         'coverage': {
@@ -150,7 +153,7 @@ def main():
     history = json.loads(history_path.read_text(encoding='utf-8')) if history_path.exists() else {'schemaVersion': 1, 'eventId': EVENT_ID, 'snapshots': []}
     if history.get('eventId') != EVENT_ID:
         raise ValueError('History belongs to another event')
-    history['snapshots'].append({'ts': ended, 'games': {g['id']: [g['heat'],g['followers'],g['rank']] for g in games}})
+    history['snapshots'].append({'ts': ended, 'heatMetricVersion': 2, 'games': {g['id']: [g['heat'],g['followers'],g['rank']] for g in games}})
     history['snapshots'] = retain(history['snapshots'], dt.datetime.now(dt.timezone.utc))
     check_size({'latest': latest, 'history': history})
     atomic_json(history_path, history)
