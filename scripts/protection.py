@@ -16,14 +16,16 @@ def retain(snapshots, now):
             recent[item['ts']] = item
     return list(daily.values()) + list(recent.values())
 
-def check_snapshot(games, previous, requested):
+def check_snapshot(games, previous, requested, departed=None):
     if not games or len({g['id'] for g in games}) != len(games):
         raise ValueError('Empty or duplicate snapshot')
     if len(games) < requested * .95:
         raise ValueError('More than 5% of requested games unavailable; preserving previous snapshot')
     old = {g['id']: g for g in previous.get('games', [])}
     new = {g['id']: g for g in games}
-    if old and len(old.keys() & new.keys()) < len(old) * .95:
+    # Games confirmed to have left the event are expected to disappear.
+    expected = old.keys() - set(departed or [])
+    if expected and len(expected & new.keys()) < len(expected) * .95:
         raise ValueError('More than 5% of previous games disappeared')
     common = old.keys() & new.keys()
     for metric in ['heat', 'followers']:

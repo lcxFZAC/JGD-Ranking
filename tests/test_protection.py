@@ -20,6 +20,11 @@ class ProtectionTest(unittest.TestCase):
         with self.assertRaises(ValueError):check_snapshot(replacements,{'games':games},100)
         check_snapshot(games[:95],{'games':games},100)
 
+    def test_confirmed_departures_are_allowed(self):
+        games=[{'id':str(i),'heat':100,'followers':100} for i in range(100)]
+        departed=[g['id'] for g in games[90:]]
+        check_snapshot(games[:90],{'games':games},90,departed=departed)
+
     def test_metric_collapse_and_size(self):
         old=[{'id':'1','heat':100,'followers':100}]
         with self.assertRaises(ValueError):check_snapshot([dict(old[0],heat=0)],{'games':old},1)

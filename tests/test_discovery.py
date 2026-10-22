@@ -16,6 +16,7 @@ class DiscoveryBatchTest(unittest.TestCase):
             pending, errors=check_batch(pending,confirmed,lambda gid:28)
             self.assertFalse(pending)
             self.assertEqual(confirmed,{'old','1','3'})
+
     def test_failed_candidate_is_retained_without_losing_successes(self):
         def checker(gid):
             if gid=='2': raise TimeoutError('temporary')
@@ -25,3 +26,10 @@ class DiscoveryBatchTest(unittest.TestCase):
         self.assertEqual(pending,['2'])
         self.assertEqual(confirmed,{'old','1'})
         self.assertEqual(errors[0]['id'],'2')
+
+    def test_non_member_is_removed_from_confirmed(self):
+        confirmed={'old','gone','keep'}
+        pending, errors=check_batch(['gone','keep','new'],confirmed,lambda gid:28 if gid!='gone' else None)
+        self.assertFalse(pending)
+        self.assertFalse(errors)
+        self.assertEqual(confirmed,{'old','keep','new'})

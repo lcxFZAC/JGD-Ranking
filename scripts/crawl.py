@@ -1,5 +1,6 @@
 """Fetch verified 2026 Spotlight entries and save an atomic, reproducible snapshot."""
 import argparse
+import concurrent.futures
 import datetime as dt
 import json
 import pathlib
@@ -11,6 +12,7 @@ from protection import retain, check_snapshot, check_size
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DATA = ROOT / 'data'
+MEMBERSHIP_CACHE = ROOT / '.cache' / 'membership'
 
 
 def timestamp():
@@ -22,6 +24,57 @@ def atomic_json(path, data):
     temporary = path.with_suffix(path.suffix + '.tmp')
     temporary.write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
     temporary.replace(path)
+
+
+def membership(gid, max_age=None):
+    """Return game_jam_tag.id for an app, with optional cache max age in seconds."""
+    MEMBERSHIP_CACHE.mkdir(parents=True, exist_ok=True)
+    path = MEMBERSHIP_CACHE / f'{gid}.json'
+    now = time.time()
+    if path.exists():
+        saved = json.loads(path.read_text(encoding='utf-8'))
+        # Membership can change while submissions are under review.
+        ttl = 86400 if saved.get('eventId') == EVENT_ID else 21600
+        if max_age is not None:
+            ttl = min(ttl, max_age)
+        if now - path.stat().st_mtime < ttl:
+            return saved.get('eventId')
+    data = get('/webapiv2/app/v6/detail', id=gid)
+    app = data.get('app', data)
+    event_id = app.get('game_jam_tag', {}).get('id')
+    atomic_json(path, {'id': gid, 'eventId': event_id, 'checkedAt': timestamp()})
+    time.sleep(.15)
+    return event_id
+
+
+def prune_inactive(ids, official, checker=None, max_age=3 * 3600):
+    """Keep official event-list IDs; re-check the rest and drop non-members.
+
+    Check failures keep the ID (fail closed on removal) so a detail outage cannot
+    empty the board. Official list IDs are trusted without a detail round-trip.
+    """
+    if checker is None:
+        checker = lambda gid: membership(gid, max_age=max_age)
+    active = set(official)
+    candidates = sorted(set(ids) - official, key=int)
+    departed, errors = [], []
+
+    def check(gid):
+        try:
+            return gid, checker(gid), None
+        except Exception as error:
+            return gid, None, str(error)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+        for gid, event, error in pool.map(check, candidates):
+            if error:
+                active.add(gid)
+                errors.append({'id': gid, 'error': error})
+            elif event == EVENT_ID:
+                active.add(gid)
+            else:
+                departed.append(gid)
+    return active, departed, errors
 
 
 def normalize(game):
@@ -84,15 +137,19 @@ def event_ids():
 
 
 def collect_ids(registry):
-    """A discovery outage must not prevent refreshing verified entries."""
+    """Union registry with the official event list; return (ids, official, list_error)."""
     ids = set(registry['ids'])
+    official = set()
+    list_error = None
     try:
-        ids.update(event_ids())
+        official = event_ids()
+        ids.update(official)
     except (urllib.error.URLError, TimeoutError, ValueError) as error:
+        list_error = error
         if not ids:
             raise
         print(f'::warning::Event discovery unavailable; refreshing {len(ids)} registered games: {error}', flush=True)
-    return ids
+    return ids, official, list_error
 
 
 def main():
@@ -107,12 +164,21 @@ def main():
     registry = json.loads(registry_path.read_text(encoding='utf-8')) if registry_path.exists() else {'eventId': EVENT_ID, 'ids': []}
     if registry['eventId'] != EVENT_ID:
         raise ValueError('Registry belongs to another event')
+    departed = []
     if args.from_discovery:
         discovered = json.loads((ROOT / '.cache/discovered.json').read_text(encoding='utf-8'))
         ids = set(discovered)
+        ids.update(registry['ids'])
     else:
-        ids = collect_ids(registry)
-    ids.update(registry['ids'])
+        ids, official, list_error = collect_ids(registry)
+        ids.update(registry['ids'])
+        # Without the official list we cannot safely distinguish departures from an outage.
+        if not list_error:
+            ids, departed, membership_errors = prune_inactive(ids, official)
+            if departed:
+                print(f'Pruned {len(departed)} games no longer tagged event {EVENT_ID}', flush=True)
+            if membership_errors:
+                print(f'::warning::Kept {len(membership_errors)} games after membership check errors', flush=True)
     ids = sorted(ids, key=int)
     games, missing = [], []
     for offset in range(0, len(ids), 50):
@@ -131,15 +197,21 @@ def main():
     ended = timestamp()
     previous_path = DATA / 'latest.json'
     previous = json.loads(previous_path.read_text(encoding='utf-8')) if previous_path.exists() else {}
-    check_snapshot(games, previous, len(ids))
+    check_snapshot(games, previous, len(ids), departed=departed)
+    notice = f'已核实收录 {len(games):,} 款公开参赛作品。统计基于已收录作品，未公开与未收录作品不计入。'
+    if missing:
+        notice += f' 本次 {len(missing)} 款无法读取，未计入统计。'
+    if departed:
+        notice += f' 本次复核移除 {len(departed)} 款已不再属于本届聚光灯的作品。'
     latest = {
         'schemaVersion': 1, 'heatMetricVersion': 2, 'eventId': EVENT_ID, 'eventName': '2026 TapTap 聚光灯 · 21天游戏创作挑战',
         'theme': '涌现', 'sourceUrl': event['url'], 'startedAt': started, 'crawledAt': ended,
         'summary': summarize(games), 'games': games,
         'coverage': {
             'kind': 'verified-public-catalogues', 'officialTotal': None, 'unavailableIds': missing,
-            'description': '合并官方赛事列表的热门、最新发布、最近更新排序，并从公开标签、PC 和 TapTap 制造目录补充候选；补充作品逐一核对详情赛事 ID 为 28。列表接口有展示上限，因此本看板表示已核实收录的公开作品，不宣称覆盖未公开或所有参赛提交。',
-            'notice': f'已核实收录 {len(games):,} 款公开参赛作品。统计基于已收录作品，未公开与未收录作品不计入。' + (f' 本次 {len(missing)} 款无法读取，未计入统计。' if missing else ''),
+            'departedIds': departed,
+            'description': '合并官方赛事列表的热门、最新发布、最近更新排序，并从公开标签、PC 和 TapTap 制造目录补充候选；补充作品与已登记但不在官方列表中的作品逐一核对详情赛事 ID 为 28，离开本届聚光灯的作品会从榜单与名单移除。列表接口有展示上限，因此本看板表示已核实收录的公开作品，不宣称覆盖未公开或所有参赛提交。',
+            'notice': notice,
         },
         'sources': [
             '/webapiv2/activity/game-jam/v1/event-detail?event_id=28',

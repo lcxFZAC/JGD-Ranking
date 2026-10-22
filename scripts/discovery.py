@@ -7,11 +7,11 @@ import concurrent.futures
 import json
 import os
 import time
+import urllib.error
 import urllib.parse
-from crawl import atomic_json, event_ids, timestamp, ROOT, DATA
+from crawl import MEMBERSHIP_CACHE, atomic_json, event_ids, membership, timestamp, ROOT, DATA
 from taptap import get, EVENT_ID
 
-CACHE = ROOT / '.cache' / 'membership'
 START = 1790784000  # 2026-10-01 00:00 in Asia/Shanghai
 
 
@@ -32,29 +32,12 @@ def paginate(path, stop_before_event=False):
     return result
 
 
-def membership(gid):
-    path = CACHE / f'{gid}.json'
-    now = time.time()
-    if path.exists():
-        saved = json.loads(path.read_text(encoding='utf-8'))
-        # Membership can change while submissions are under review.
-        ttl = 86400 if saved.get('eventId') == EVENT_ID else 21600
-        if now - path.stat().st_mtime < ttl:
-            return saved.get('eventId')
-    data = get('/webapiv2/app/v6/detail', id=gid)
-    app = data.get('app', data)
-    event_id = app.get('game_jam_tag', {}).get('id')
-    atomic_json(path, {'id': gid, 'eventId': event_id, 'checkedAt': timestamp()})
-    time.sleep(.15)
-    return event_id
-
-
 STATE = DATA / 'discovery-state.json'
 BATCH_SIZE = 600
 
 
 def check_batch(pending, confirmed, checker=membership):
-    """Bound work and retain failures for retry without losing verified IDs."""
+    """Bound work; add members, drop explicit non-members, retry failures."""
     selected, remaining = pending[:BATCH_SIZE], pending[BATCH_SIZE:]
     errors = []
     def check(gid):
@@ -62,25 +45,35 @@ def check_batch(pending, confirmed, checker=membership):
         except Exception as error: return gid, None, str(error)
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
         for gid, event, error in pool.map(check, selected):
-            if event == EVENT_ID: confirmed.add(gid)
             if error:
                 remaining.append(gid)
                 errors.append({"id": gid, "error": error})
+            elif event == EVENT_ID:
+                confirmed.add(gid)
+            else:
+                confirmed.discard(gid)
     return remaining, errors
 
 
 def main():
-    CACHE.mkdir(parents=True, exist_ok=True)
+    MEMBERSHIP_CACHE.mkdir(parents=True, exist_ok=True)
     prior_path = DATA / 'registry.json'
     previous = json.loads(prior_path.read_text(encoding='utf-8')) if prior_path.exists() else {'ids': []}
-    confirmed = set(previous['ids'])
+    prior = set(previous['ids'])
     state = json.loads(STATE.read_text(encoding='utf-8')) if STATE.exists() else {}
     if state.get('eventId') == EVENT_ID and state.get('pending'):
+        confirmed = set(state.get('confirmed') or prior)
         pending = state['pending']
         print(f'Resuming {len(pending)} pending candidates', flush=True)
     else:
-        confirmed.update(event_ids())
-        candidates = {gid: {'id': int(gid)} for gid in previous['ids']}
+        official = set()
+        try:
+            official = event_ids()
+        except (urllib.error.URLError, TimeoutError, ValueError) as error:
+            print(f'::warning::Event list unavailable; retaining registered games and checking new candidates: {error}', flush=True)
+        # Keep priors until a detail check proves they left; trust the official list as members.
+        confirmed = set(prior) | official
+        candidates = {gid: {'id': int(gid)} for gid in prior}
         for tag in ['聚光灯GameJam', 'TapTap制造']:
             for sort in ['updated', 'hits', 'score']:
                 path = '/webapiv2/app-tag/v1/by-tag?' + urllib.parse.urlencode({'tag': tag, 'sort': sort, 'from': 0, 'limit': 20})
@@ -96,20 +89,22 @@ def main():
             # Already verified IDs are still checked, regardless of publication date.
             candidates.update({gid: g for gid, g in found.items() if not g.get('released_time') or g['released_time'] >= START})
             print(f'{kind}: {len(found)} catalogue entries', flush=True)
-        pending = sorted(set(candidates) - confirmed, key=int, reverse=True)
-        state = {'eventId': EVENT_ID, 'startedAt': timestamp()}
+        # Official-list IDs are trusted; priors and catalogue supplements are re-checked.
+        pending = sorted(set(candidates) - official, key=int, reverse=True)
+        state = {'eventId': EVENT_ID, 'startedAt': timestamp(), 'confirmed': sorted(confirmed, key=int)}
     # Checkpoint the candidate queue before expensive membership requests.
-    state.update(pending=pending, updatedAt=timestamp())
+    state.update(pending=pending, confirmed=sorted(confirmed, key=int), updatedAt=timestamp())
     atomic_json(STATE, state)
     remaining, errors = check_batch(pending, confirmed)
-    # Publish verified additions even when a different candidate failed.
+    # Publish after each batch; unchecked priors remain until detail proves departure.
     atomic_json(DATA / 'registry.json', {'eventId': EVENT_ID, 'updatedAt': timestamp(), 'ids': sorted(confirmed, key=int)})
-    state.update(pending=remaining, updatedAt=timestamp(), errors=errors)
+    state.update(pending=remaining, confirmed=sorted(confirmed, key=int), updatedAt=timestamp(), errors=errors)
     atomic_json(STATE, state)
     if os.environ.get('GITHUB_OUTPUT'):
         with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
             output.write(f'complete={str(not remaining).lower()}\n')
-    print(f'Verified registry: {len(confirmed)}; pending: {len(remaining)}; request errors: {len(errors)}', flush=True)
+    dropped = len(prior - confirmed)
+    print(f'Verified registry: {len(confirmed)}; pending: {len(remaining)}; dropped: {dropped}; request errors: {len(errors)}', flush=True)
     if errors:
         raise RuntimeError(f'{len(errors)} membership requests failed; progress saved for retry')
 

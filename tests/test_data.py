@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 import urllib.error
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]/'scripts'))
-from crawl import normalize, summarize, collect_ids
+from crawl import normalize, summarize, collect_ids, prune_inactive
 
 
 def raw(gid=1, heat=0, platforms=None, maker=False):
@@ -16,13 +16,31 @@ def raw(gid=1, heat=0, platforms=None, maker=False):
 class StatisticsTest(unittest.TestCase):
     def test_discovery_outage_preserves_registry(self):
         with patch('crawl.event_ids', side_effect=urllib.error.URLError('temporary outage')):
-            self.assertEqual(collect_ids({'ids': ['1', '2']}), {'1', '2'})
+            ids, official, error = collect_ids({'ids': ['1', '2']})
+            self.assertEqual(ids, {'1', '2'})
+            self.assertEqual(official, set())
+            self.assertIsNotNone(error)
             with self.assertRaises(urllib.error.URLError):
                 collect_ids({'ids': []})
 
     def test_discovery_adds_new_entries(self):
         with patch('crawl.event_ids', return_value={'2', '3'}):
-            self.assertEqual(collect_ids({'ids': ['1', '2']}), {'1', '2', '3'})
+            ids, official, error = collect_ids({'ids': ['1', '2']})
+            self.assertEqual(ids, {'1', '2', '3'})
+            self.assertEqual(official, {'2', '3'})
+            self.assertIsNone(error)
+
+    def test_prune_drops_non_members_keeps_official_and_errors(self):
+        def checker(gid):
+            if gid == '2':
+                return None
+            if gid == '3':
+                raise TimeoutError('temporary')
+            return 28
+        active, departed, errors = prune_inactive({'1', '2', '3', '9'}, {'9'}, checker=checker)
+        self.assertEqual(active, {'1', '3', '9'})
+        self.assertEqual(departed, ['2'])
+        self.assertEqual(errors[0]['id'], '3')
 
     def test_platforms_are_mutually_exclusive(self):
         games=[normalize(raw(i,platforms=p)) for i,p in enumerate([['pc','android'],['android','ios'],['pc'],[],['pc','steam']])]
