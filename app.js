@@ -310,7 +310,7 @@
   const client = new window.SpotlightDataClient({fetcher: (...args) => fetch(...args), storage, initial: window.SPOTLIGHT_DATA.latest,
     base: ['localhost','127.0.0.1'].includes(location.hostname) ? './data/' : undefined});
   let refreshing = false;
-  async function refreshSnapshot() {
+  async function refreshSnapshot(force = false) {
     if (location.protocol === 'file:' || refreshing) return;
     refreshing = true;
     const before = state.data.crawledAt;
@@ -320,7 +320,7 @@
     $('statusPill').setAttribute('aria-busy', 'true');
     report('正在更新…');
     try {
-      const latest = await client.check();
+      const latest = await client.check(force);
       if (state.data !== latest) initialize({latest});
       updateFreshness();
       const checked = new Date().toLocaleTimeString('zh-CN', {timeZone:'Asia/Shanghai',hour12:false});
@@ -356,7 +356,7 @@
   $('historyCount').tabIndex = 0;
   $('historyCount').addEventListener('click', activateTrends);
   $('historyCount').addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') activateTrends(); });
-  $('statusPill').addEventListener('click', refreshSnapshot);
+  $('statusPill').addEventListener('click', () => refreshSnapshot(true));
   if ('IntersectionObserver' in window) {
     const observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) { observer.disconnect(); activateTrends(); }

@@ -42,12 +42,12 @@
       this.catalogue = data;
       try { this.storage?.setItem(CACHE_KEY, JSON.stringify(data)); } catch { /* Quota is optional. */ }
     }
-    async check() {
+    async check(force = false) {
       if (this.pending) return this.pending;
-      this.pending = this.checkOnce().catch(async error => {
+      this.pending = (force && this.base === BASE ? this.recoverSnapshot() : this.checkOnce()).catch(async error => {
         // Branch URLs can serve different commits even with no-store/query strings.
         // Resolve a publication commit only on failure, then read immutable URLs.
-        if (this.base !== BASE) throw error;
+        if (force || this.base !== BASE) throw error;
         try { return await this.recoverSnapshot(); } catch { throw error; }
       }).finally(() => { this.pending = null; });
       return this.pending;

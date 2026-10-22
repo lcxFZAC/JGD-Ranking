@@ -69,6 +69,9 @@ const initial = {...latest,partial:true};
   assert.equal((await recovered.check()).crawledAt,version.version,'Pinned commit recovers stale branch catalogue');
   await recovered.loadHistory();
   assert.ok(recoveryCalls.some(url=>url.includes('/'+sha+'/data/history.json')),'History stays on the same immutable commit');
+  recoveryCalls.length=0;
+  await recovered.check(true);
+  assert.ok(recoveryCalls[0].includes('/commits?'),'Explicit refresh bypasses stale branch manifest as well as catalogue');
   const mirror=new DataClient({storage:null,initial,fetcher:async url=>{
     if(url.startsWith('https://raw.githubusercontent.com/')) throw Error('network unavailable');
     return {ok:true,json:async()=>url.includes('version.json')?version:data};
