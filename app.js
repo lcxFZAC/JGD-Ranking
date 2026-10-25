@@ -235,7 +235,7 @@
     body.append(node('p', '', `数据抓取：${when(data.startedAt)} — ${when(data.crawledAt)}（北京时间）。已收录 ${number(data.summary.total)} 款本届公开作品。`));
     const list = node('ul');
     [
-      '赛事：TapTap 聚光灯 2026 年 21 天游戏创作挑战，官方赛事 ID 28，主题「涌现」。',
+      '赛事：TapTap 聚光灯 2026 年 21 天游戏创作挑战，官方报名活动 ID 3（赛事详情 ID 28），主题「涌现」。',
       data.coverage?.description || '以官方赛事目录为入口，按 TapTap 游戏 ID 去重。',
       '热度合并批量接口的作品热度与 PC 下载数（hits_total + pc_download_count），与抽样核对的详情页总热度一致；关注取 fans_count。缺失或无效字段会阻止发布，不按 0 填充。',
       'TapTap 制造按官方「TapTap制造」标签识别；未带此标签的作品归入其他方式。分类不等同于对实际引擎或 AI 使用情况的鉴定。',

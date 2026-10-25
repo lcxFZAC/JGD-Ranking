@@ -8,6 +8,7 @@ import statistics
 import time
 import urllib.error
 from taptap import get, EVENT_ID
+from participants import fetch_participants, POSTER_URL, ENDPOINT
 from protection import retain, check_snapshot, check_size
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -154,8 +155,7 @@ def collect_ids(registry):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--from-discovery', action='store_true', help='Use locally verified discovery results for the initial import')
-    args = parser.parse_args()
+    parser.parse_args()
     started = timestamp()
     event = get('/webapiv2/activity/game-jam/v1/event-detail', event_id=EVENT_ID)['event']
     if event.get('year') != 2026 or event.get('id') != EVENT_ID or '21' not in event.get('event_name', ''):
@@ -164,21 +164,11 @@ def main():
     registry = json.loads(registry_path.read_text(encoding='utf-8')) if registry_path.exists() else {'eventId': EVENT_ID, 'ids': []}
     if registry['eventId'] != EVENT_ID:
         raise ValueError('Registry belongs to another event')
-    departed = []
-    if args.from_discovery:
-        discovered = json.loads((ROOT / '.cache/discovered.json').read_text(encoding='utf-8'))
-        ids = set(discovered)
-        ids.update(registry['ids'])
-    else:
-        ids, official, list_error = collect_ids(registry)
-        ids.update(registry['ids'])
-        # Without the official list we cannot safely distinguish departures from an outage.
-        if not list_error:
-            ids, departed, membership_errors = prune_inactive(ids, official)
-            if departed:
-                print(f'Pruned {len(departed)} games no longer tagged event {EVENT_ID}', flush=True)
-            if membership_errors:
-                print(f'::warning::Kept {len(membership_errors)} games after membership check errors', flush=True)
+    # The poster submission roster is authoritative. A missing event-28 badge
+    # does not prove withdrawal from poster activity 3.
+    participants = fetch_participants()
+    ids = {str(g['id']) for g in participants['games']}
+    departed = sorted(set(registry['ids']) - ids, key=int)
     ids = sorted(ids, key=int)
     games, missing = [], []
     for offset in range(0, len(ids), 50):
@@ -198,27 +188,25 @@ def main():
     previous_path = DATA / 'latest.json'
     previous = json.loads(previous_path.read_text(encoding='utf-8')) if previous_path.exists() else {}
     check_snapshot(games, previous, len(ids), departed=departed)
-    notice = f'已核实收录 {len(games):,} 款公开参赛作品。统计基于已收录作品，未公开与未收录作品不计入。'
+    notice = f'官方报名 {participants["total"]:,} 款；已核实收录 {len(games):,} 款公开参赛作品。统计基于已收录作品，未公开与未收录作品不计入。'
     if missing:
         notice += f' 本次 {len(missing)} 款无法读取，未计入统计。'
     if departed:
-        notice += f' 本次复核移除 {len(departed)} 款已不再属于本届聚光灯的作品。'
+        notice += f' 本次对照完整报名名单移除 {len(departed)} 款当前名单未列出的作品。'
     latest = {
         'schemaVersion': 1, 'heatMetricVersion': 2, 'eventId': EVENT_ID, 'eventName': '2026 TapTap 聚光灯 · 21天游戏创作挑战',
-        'theme': '涌现', 'sourceUrl': event['url'], 'startedAt': started, 'crawledAt': ended,
+        'theme': '涌现', 'sourceUrl': POSTER_URL, 'startedAt': started, 'crawledAt': ended,
         'summary': summarize(games), 'games': games,
         'coverage': {
-            'kind': 'verified-public-catalogues', 'officialTotal': None, 'unavailableIds': missing,
+            'kind': 'official-poster-participants', 'posterId': 3, 'officialTotal': participants['total'], 'unavailableIds': missing,
             'departedIds': departed,
-            'description': '合并官方赛事列表的热门、最新发布、最近更新排序，并从公开标签、PC 和 TapTap 制造目录补充候选；补充作品与已登记但不在官方列表中的作品逐一核对详情赛事 ID 为 28，离开本届聚光灯的作品会从榜单与名单移除。列表接口有展示上限，因此本看板表示已核实收录的公开作品，不宣称覆盖未公开或所有参赛提交。',
+            'description': '完整分页读取官方活动页面的全部报名作品（活动 ID 3），逐项获取指标；详情赛事徽标 ID 28 不再作为移除依据。官方报名总数与可读取指标的作品数分别展示。',
             'notice': notice,
         },
         'sources': [
+            ENDPOINT + '?id=3&category=0&view=all',
             '/webapiv2/activity/game-jam/v1/event-detail?event_id=28',
-            '/webapiv2/activity/game-jam/v1/app-list-by-event?event_id=28',
             '/webapiv2/app/v1/mini-multi-get',
-            '/webapiv2/app/v6/detail',
-            '/webapiv2/maker/v1/app-list', '/webapiv2/pc-game/v1/list', '/webapiv2/app-tag/v1/by-tag',
         ],
     }
     history_path = DATA / 'history.json'
@@ -228,9 +216,14 @@ def main():
     history['snapshots'].append({'ts': ended, 'heatMetricVersion': 2, 'games': {g['id']: [g['heat'],g['followers'],g['rank']] for g in games}})
     history['snapshots'] = retain(history['snapshots'], dt.datetime.now(dt.timezone.utc))
     check_size({'latest': latest, 'history': history})
+    atomic_json(DATA / 'participants.json', {
+        'posterId': 3, 'crawledAt': participants['crawledAt'], 'sourceUrl': POSTER_URL,
+        'total': participants['total'],
+        'games': [{'id': str(g['id']), 'name': g['title'], 'type': g['type']} for g in participants['games']],
+    })
     atomic_json(history_path, history)
     atomic_json(DATA / 'latest.json', latest)
-    atomic_json(registry_path, {'eventId': EVENT_ID, 'updatedAt': ended, 'ids': ids})
+    atomic_json(registry_path, {'eventId': EVENT_ID, 'posterId': 3, 'updatedAt': ended, 'ids': ids})
     print(json.dumps(latest['summary'],ensure_ascii=False,indent=2),flush=True)
 
 

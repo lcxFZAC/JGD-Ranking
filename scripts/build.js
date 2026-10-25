@@ -27,6 +27,10 @@ fs.cpSync(path.join(root,'assets'),path.join(dist,'assets'),{recursive:true});
 fs.copyFileSync(path.join(root,'_headers'),path.join(dist,'_headers'));
 for (const file of ['index.html','styles.css','spotlight.css','app.js','data-client.js']) fs.copyFileSync(path.join(root,file), path.join(dist,file));
 for (const file of ['latest.json','history.json','dashboard.js','bootstrap.js','catalogue.json','version.json']) fs.copyFileSync(path.join(root,'data',file), path.join(dist,'data',file));
+for (const file of ['participants.json','reconciliation.json']) {
+  if (fs.existsSync(path.join(root,'data',file))) fs.copyFileSync(path.join(root,'data',file),path.join(dist,'data',file));
+}
+if (fs.existsSync(path.join(root,'reports'))) fs.cpSync(path.join(root,'reports'),path.join(dist,'reports'),{recursive:true});
 fs.writeFileSync(path.join(dist,'.nojekyll'), '');
 // Render the first screen from one HTML response. A slow/failed CSS or JS
 // connection must not leave an otherwise downloaded page unusable.
