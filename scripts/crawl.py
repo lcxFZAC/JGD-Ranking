@@ -8,7 +8,7 @@ import statistics
 import time
 import urllib.error
 from taptap import get, EVENT_ID
-from participants import fetch_participants, POSTER_URL, ENDPOINT
+from participants import fetch_participants, cached_participants, POSTER_URL, ENDPOINT
 from protection import retain, check_snapshot, check_size
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -166,7 +166,11 @@ def main():
         raise ValueError('Registry belongs to another event')
     # The poster submission roster is authoritative. A missing event-28 badge
     # does not prove withdrawal from poster activity 3.
-    participants = fetch_participants()
+    try:
+        participants = fetch_participants()
+    except (urllib.error.URLError, TimeoutError) as error:
+        participants = cached_participants(DATA / 'participants.json', registry)
+        print(f'::warning::Participant endpoint unavailable; using complete roster from {participants["crawledAt"]}: {error}', flush=True)
     ids = {str(g['id']) for g in participants['games']}
     departed = sorted(set(registry['ids']) - ids, key=int)
     ids = sorted(ids, key=int)
@@ -193,6 +197,8 @@ def main():
         notice += f' 本次 {len(missing)} 款无法读取，未计入统计。'
     if departed:
         notice += f' 本次对照完整报名名单移除 {len(departed)} 款当前名单未列出的作品。'
+    if participants.get('stale'):
+        notice += f' 报名名单接口暂不可用，沿用 {participants["crawledAt"]} 的完整名单；作品指标为本次重新抓取，暂不增删名单。'
     latest = {
         'schemaVersion': 1, 'heatMetricVersion': 2, 'eventId': EVENT_ID, 'eventName': '2026 TapTap 聚光灯 · 21天游戏创作挑战',
         'theme': '涌现', 'sourceUrl': POSTER_URL, 'startedAt': started, 'crawledAt': ended,
@@ -200,6 +206,7 @@ def main():
         'coverage': {
             'kind': 'official-poster-participants', 'posterId': 3, 'officialTotal': participants['total'], 'unavailableIds': missing,
             'departedIds': departed,
+            'rosterCrawledAt': participants['crawledAt'], 'rosterStale': bool(participants.get('stale')),
             'description': '完整分页读取官方活动页面的全部报名作品（活动 ID 3），逐项获取指标；详情赛事徽标 ID 28 不再作为移除依据。官方报名总数与可读取指标的作品数分别展示。',
             'notice': notice,
         },

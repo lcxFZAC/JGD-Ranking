@@ -2,6 +2,7 @@
 import contextlib
 import datetime as dt
 import io
+import json
 import os
 import pathlib
 import shutil
@@ -9,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import urllib.error
 from unittest.mock import patch
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -18,7 +20,7 @@ import crawl
 
 def publication_script():
     """Read the literal Bash block, without adding a YAML runtime dependency."""
-    lines = (ROOT / '.github/workflows/update.yml').read_text().splitlines()
+    lines = (ROOT / '.github/workflows/update.yml').read_text(encoding='utf-8').splitlines()
     start = lines.index('      - name: Save verified snapshots')
     start = lines.index('        run: |', start) + 1
     script = []
@@ -74,10 +76,10 @@ class SnapshotPublicationTest(unittest.TestCase):
         return self.run_command('git', *args, **kwargs)
 
     def snapshot_paths(self):
-        return {str(path.relative_to(self.work))
+        return {path.relative_to(self.work).as_posix()
                 for path in (self.work / 'data').glob('*.json')}
 
-    def refresh(self, minute):
+    def refresh(self, minute, roster_error=None):
         timestamp = (self.now + dt.timedelta(minutes=minute)).isoformat()
         game = {'id': 1, 'title': 'Fixture game', 'type': 'app',
                 'stat': {'hits_total': 10, 'pc_download_count': 0, 'fans_count': 2}}
@@ -93,7 +95,7 @@ class SnapshotPublicationTest(unittest.TestCase):
 
         with patch.object(crawl, 'DATA', self.work / 'data'), \
                 patch.object(crawl, 'get', side_effect=api), \
-                patch.object(crawl, 'fetch_participants', return_value=roster), \
+                patch.object(crawl, 'fetch_participants', return_value=roster, side_effect=roster_error), \
                 patch.object(crawl, 'timestamp', return_value=timestamp), \
                 patch.object(crawl.time, 'sleep'), patch.object(sys, 'argv', ['crawl.py']), \
                 contextlib.redirect_stdout(io.StringIO()):
@@ -104,6 +106,17 @@ class SnapshotPublicationTest(unittest.TestCase):
         # Match the workflow's explicit shell: bash fail-fast/pipefail behavior.
         return self.run_command('bash', '--noprofile', '--norc', '-eo', 'pipefail',
                                 '-c', publication_script(), check=check)
+
+    def test_roster_outage_refreshes_metrics_without_claiming_new_roster(self):
+        before = json.loads((self.work / 'data/participants.json').read_text())
+        self.refresh(1, urllib.error.HTTPError('https://www.taptap.cn/',405,'Not Allowed',{},None))
+        after = json.loads((self.work / 'data/participants.json').read_text())
+        latest = json.loads((self.work / 'data/latest.json').read_text(encoding='utf-8'))
+        self.assertEqual(before,after)
+        self.assertTrue(latest['coverage']['rosterStale'])
+        self.assertEqual(latest['coverage']['departedIds'],[])
+        self.assertEqual(latest['coverage']['rosterCrawledAt'],before['crawledAt'])
+        self.assertEqual(latest['games'][0]['heat'],10)
 
     def test_every_crawl_and_build_snapshot_is_committed_before_rebase(self):
         # A real upstream change requires rebase, rather than merely an up-to-date pull.
